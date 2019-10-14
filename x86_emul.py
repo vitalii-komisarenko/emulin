@@ -3,7 +3,8 @@
 import struct
 import elf_header_parser
 
-fh = open("calc", "rb")
+#fh = open("calc", "rb")
+fh = open("calc-static", "rb")
  
 bytes = bytearray(fh.read())
 
