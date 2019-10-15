@@ -2,20 +2,22 @@ import struct
 import mem
 
 class program_header:
-	def __init__(self, bytes, little_endian):
+	def __init__(self, bytes):
 		self.bytes = bytes
-		self.little_endian = little_endian
-		self.p_type = read_field4(bytes, little_endian, 0)
-		self.p_flags = read_field4(bytes, little_endian, 4)
-		self.p_offset = read_field8(bytes, little_endian, 8)
-		self.p_vaddr = read_field8(bytes, little_endian, 0x10)
-		self.p_paddr = read_field8(bytes, little_endian, 0x18)
-		self.p_filesz = read_field8(bytes, little_endian, 0x20)
-		self.p_memsz = read_field8(bytes, little_endian, 0x28)
-		self.p_align = read_field8(bytes, little_endian, 0x30)
+		
+		self.p_type, \
+		self.p_flags, \
+		self.p_offset, \
+		self.p_vaddr, \
+		self.p_paddr, \
+		self.p_filesz, \
+		self.p_memsz, \
+		self.p_align = struct.unpack("<LLQQQQQQ", bytes)
 
 class section_header:
 	def __init__(self, bytes):
+		self.bytes = bytes
+	
 		self.sh_name, \
 		self.sh_type, \
 		self.sh_flags, \
@@ -25,7 +27,7 @@ class section_header:
 		self.sh_link, \
 		self.sh_info, \
 		self.sh_addralign, \
-		self.sh_entsize = struct.unpack("<IIQQQQIIQQ", bytes)
+		self.sh_entsize = struct.unpack("<LLQQQQLLQQ", bytes)
 
 class elf_header:
 	def __init__(self, bytes):
@@ -40,26 +42,27 @@ class elf_header:
 		if bytes[5] != 1:
 			raise Exception("x86_64 must be little endian")
 
-		self.little_endian = (bytes[5] == 1)
-		
-		self.entry = self.__read_field8(0x18)
-		
-		self.e_phoff = self.__read_field8(0x20)
-		
-		# size of a program header table entry
-		self.e_phentsize = self.__read_field2(0x36)
-		self.e_phnum = self.__read_field2(0x38)
+		self.e_type, \
+		self.e_machine, \
+		self.e_version, \
+		self.e_entry, \
+		self.e_phoff, \
+		self.e_shoff, \
+		self.e_flags, \
+		self.e_ehsize, \
+		self.e_phentsize, \
+		self.e_phnum, \
+		self.e_shentsize, \
+		self.e_shnum, \
+		self.e_shstrndx = struct.unpack("<HHLQQQL6H", bytes[0x10:0x40])
 
-		self.e_shentsize = self.__read_field2(0x3A)
-		self.e_shnum = self.__read_field2(0x3C)
-
-		self.e_shstrndx = self.__read_field2(0x3E)
+		self.entry = self.e_entry
 		
 		self.program_headers = []
 		
 		for i in range(self.e_phnum):
 			b = bytes[self.e_phoff + i * self.e_phentsize: self.e_phoff + (i+1) * self.e_phentsize]
-			self.program_headers.append(program_header(b, self.little_endian))
+			self.program_headers.append(program_header(b))
 
 		for ph in self.program_headers:
 			print("program header: " + hex(ph.p_type))
@@ -98,25 +101,10 @@ class elf_header:
 			"entry = " + hex(self.entry)
 		
 	def __read_field8(self, pos):
-		fmt = "<Q" if self.little_endian else ">Q"
-		return struct.unpack(fmt, self.bytes[pos:pos + 8])[0]
+		return struct.unpack("<Q", self.bytes[pos:pos + 8])[0]
 
 	def __read_field4(self, pos):
-		fmt = "<I" if self.little_endian else ">I"
-		return struct.unpack(fmt, self.bytes[pos:pos + 4])[0]
+		return struct.unpack("<L", self.bytes[pos:pos + 4])[0]
 
 	def __read_field2(self, pos):
-		fmt = "<H" if self.little_endian else ">H"
-		return struct.unpack(fmt, self.bytes[pos:pos + 2])[0]
-
-def read_field8(bytes, little_endian, pos):
-	fmt = "<Q" if little_endian else ">Q"
-	return struct.unpack(fmt, bytes[pos:pos + 8])[0]
-
-def read_field4(bytes, little_endian, pos):
-	fmt = "<I" if little_endian else ">I"
-	return struct.unpack(fmt, bytes[pos:pos + 4])[0]
-
-def read_field2(bytes, little_endian, pos):
-	fmt = "<H" if little_endian else ">H"
-	return struct.unpack(fmt, bytes[pos:pos + 2])[0]
+		return struct.unpack("<H", self.bytes[pos:pos + 2])[0]
