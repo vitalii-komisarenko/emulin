@@ -19,8 +19,10 @@ pos = entry
 
 print(header)
 
+print(list(map(hex, header.mem.mem.keys())))
+
 while True:
 	print("pos = ", hex(pos))
-	print(list(map(hex, bytes[pos:pos+10])))
+	print(list(map(hex, header.mem.get_range(pos,10))))
 	
 	x = input("")
