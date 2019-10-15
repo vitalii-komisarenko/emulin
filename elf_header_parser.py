@@ -100,11 +100,3 @@ class elf_header:
 			"base_address = " + hex(self.base_address) + "\n" + \
 			"entry = " + hex(self.entry)
 		
-	def __read_field8(self, pos):
-		return struct.unpack("<Q", self.bytes[pos:pos + 8])[0]
-
-	def __read_field4(self, pos):
-		return struct.unpack("<L", self.bytes[pos:pos + 4])[0]
-
-	def __read_field2(self, pos):
-		return struct.unpack("<H", self.bytes[pos:pos + 2])[0]
