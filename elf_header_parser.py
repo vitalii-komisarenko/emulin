@@ -29,6 +29,15 @@ class section_header:
 		self.sh_addralign, \
 		self.sh_entsize = struct.unpack("<LLQQQQLLQQ", bytes)
 
+def c_string(bytes, pos):
+	res = bytearray()
+	while True:
+		if bytes[pos] == 0:
+			return res.decode()
+		else:
+			res.append(bytes[pos])
+			pos = pos + 1
+
 class elf_header:
 	def __init__(self, bytes):
 		self.bytes = bytes
@@ -90,6 +99,15 @@ class elf_header:
 				pass
 			else:
 				raise Exception("Unsupported program header type: " + hex(ph.p_type))
+				
+		self.section_headers = []
+
+		for i in range(self.e_shnum):
+			b = bytes[self.e_shoff + i * self.e_shentsize: self.e_shoff + (i+1) * self.e_shentsize]
+			self.section_headers.append(section_header(b))
+			
+		for sh in self.section_headers:
+			sh.name = c_string(bytes, self.section_headers[self.e_shstrndx].sh_offset + sh.sh_name)
 
 	def __str__(self):
 		return "e_phentsize = " + str(self.e_phentsize) + "\n" + \
@@ -100,3 +118,9 @@ class elf_header:
 			"base_address = " + hex(self.base_address) + "\n" + \
 			"entry = " + hex(self.entry)
 		
+	def get_section_by_name(self, name):
+		for sh in self.section_headers:
+			if sh.name == name:
+				return sh
+				
+		raise Exception("No section with name " + name)
