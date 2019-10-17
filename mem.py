@@ -12,7 +12,7 @@ class mem:
 		self.mem[pos] = value
 		
 	def get_range(self, pos, length):
-		res = []
+		res = bytearray()
 		for i in range(length):
 			res.append(self.get_byte(pos + i))
 		return res

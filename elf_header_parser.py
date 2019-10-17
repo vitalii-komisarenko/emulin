@@ -1,5 +1,6 @@
 import struct
 import mem
+import cpu
 
 class program_header:
 	def __init__(self, bytes):
@@ -28,6 +29,9 @@ class section_header:
 		self.sh_info, \
 		self.sh_addralign, \
 		self.sh_entsize = struct.unpack("<LLQQQQLLQQ", bytes)
+
+	def __str__(self):
+		return "name={0:<20} addr={1:0>8x} offset={2:0>8x} size={3:0>8x}".format(self.name, self.sh_addr, self.sh_offset, self.sh_size)
 
 def c_string(bytes, pos):
 	res = bytearray()
@@ -109,14 +113,29 @@ class elf_header:
 		for sh in self.section_headers:
 			sh.name = c_string(bytes, self.section_headers[self.e_shstrndx].sh_offset + sh.sh_name)
 
+		# Loading sections to memory
+		for sh in self.section_headers:
+			if sh.sh_type == 0: # SHT_NULL
+				pass
+			elif sh.sh_flags and 0x2: #SHF_ALLOC
+				pass
+				self.mem.set_range(sh.sh_addr, bytes[sh.sh_offset:sh.sh_offset+sh.sh_size])
+				
+		self.cpu = cpu.cpu(self.mem, self.entry)
+
 	def __str__(self):
-		return "e_phentsize = " + str(self.e_phentsize) + "\n" + \
+		tmp = "e_phentsize = " + str(self.e_phentsize) + "\n" + \
 			"e_phnum = " + str(self.e_phnum) + "\n" + \
 			"e_shentsize = " + str(self.e_phentsize) + "\n" + \
 			"e_shnum = " + str(self.e_phnum) + "\n" + \
 			"e_shstrndx = " + str(self.e_shstrndx) + "\n" + \
 			"base_address = " + hex(self.base_address) + "\n" + \
 			"entry = " + hex(self.entry)
+		
+		for sh in self.section_headers:
+			tmp += "\n{0}".format(sh)
+			
+		return tmp
 		
 	def get_section_by_name(self, name):
 		for sh in self.section_headers:
