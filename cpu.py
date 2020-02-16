@@ -29,6 +29,24 @@ class cpu:
 		self.mem = mem
 		self.rip = rip
 		self.prefixes = []
+		self.flags = {
+			"cf": 0,
+			"pf": 0,
+			"af": 0,
+			"zf": 0,
+			"sf": 0,
+			"tf": 0,
+			"if": 0,
+			"df": 0,
+			"of": 0,
+			"iopl": 0,
+			"rf": 0,
+			"vm": 0,
+			"ac": 0,
+			"vif": 0,
+			"vip": 0,
+			"id": 0,
+		}
 
 	def get_register(self, name):
 		

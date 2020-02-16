@@ -63,7 +63,7 @@ class modrm_based_instruction:
 		
 		print(hex(self.opcode), self.function(), args[0], args[1])
 		
-		modrm_based_instruction.apply_function(self.function(), args[0], args[1])
+		modrm_based_instruction.apply_function(self.function(), args[0], args[1], self.cpu)
 
 	def immediate_size(self):
 		if self.opcode in range(0x00, 0x40):
@@ -114,26 +114,33 @@ class modrm_based_instruction:
 		else:
 			return False
 	
-	def apply_function(f, a, b):
+	def apply_function(f, a, b, cpu):
 		# TODO: flags
+		res = 0
 		if f == 'add':
-			a.set(a.get() + b.get())
+			res = a.get() + b.get()
 		elif f == 'or':
-			a.set(a.get() | b.get())
+			res = a.get() | b.get()
 		elif f == 'adc':
-			a.set(a.get() + b.get())
+			res = a.get() + b.get()
 		elif f == 'sbb':
-			a.set(a.get() - b.get())
+			res = a.get() - b.get() - cpu.flags['cf']
 		elif f == 'and':
-			a.set(a.get() & b.get())
+			res = a.get() & b.get()
 		elif f == 'sub':
-			a.set(a.get() - b.get())
+			res = a.get() - b.get()
 		elif f == 'xor':
-			a.set(a.get() ^ b.get())
+			res = a.get() ^ b.get()
 		elif f == 'mov':
 			a.set(b.get())
+			return
 		else:
 			raise Exception("Bad function: " + f)
+			
+		a.set(res)
+		cpu.flags['zf'] = 1 if res == 0 else 0
+		cpu.flags['sf'] = (res >> (a.get_size() - 1)) & 1
+		cpu.flags['pf'] = res & 1
 			
 	def function(self):
 		if self.opcode in range(0x00, 0x40):

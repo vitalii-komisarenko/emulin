@@ -9,6 +9,9 @@ class pointer(ABC):
 	@abstractmethod
 	def set_value_8_bytes(self, value):
 		pass
+		
+	def get_size(self):
+		return self.size
 	
 	def get(self):
 		return self.get_value_8_bytes() % (256 ** self.size)
