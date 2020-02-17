@@ -2,6 +2,7 @@ import mem
 import struct
 import pointer
 import modrm_based_instruction
+import eflags
 
 regs64 = {
 	"rax": 0,
@@ -29,24 +30,16 @@ class cpu:
 		self.mem = mem
 		self.rip = rip
 		self.prefixes = []
-		self.flags = {
-			"cf": 0,
-			"pf": 0,
-			"af": 0,
-			"zf": 0,
-			"sf": 0,
-			"tf": 0,
-			"if": 0,
-			"df": 0,
-			"of": 0,
-			"iopl": 0,
-			"rf": 0,
-			"vm": 0,
-			"ac": 0,
-			"vif": 0,
-			"vip": 0,
-			"id": 0,
-		}
+		self.eflags = eflags.eflags()
+
+	def get_flag(self, name):
+		return self.eflags.get_flag(name)
+		
+	def set_flag(self, name, value):
+		self.eflags.set_flag(name, value)
+
+	def update_flags(self, value, size, mask):
+		self.eflags.set_flags_for_value(value, size, mask)
 
 	def get_register(self, name):
 		

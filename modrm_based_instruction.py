@@ -63,7 +63,7 @@ class modrm_based_instruction:
 		
 		print(hex(self.opcode), self.function(), args[0], args[1])
 		
-		modrm_based_instruction.apply_function(self.function(), args[0], args[1], self.cpu)
+		modrm_based_instruction.apply_function(self, self.function(), args[0], args[1])
 
 	def immediate_size(self):
 		if self.opcode in range(0x00, 0x40):
@@ -114,7 +114,7 @@ class modrm_based_instruction:
 		else:
 			return False
 	
-	def apply_function(f, a, b, cpu):
+	def apply_function(self, f, a, b):
 		# TODO: flags
 		res = 0
 		if f == 'add':
@@ -124,7 +124,7 @@ class modrm_based_instruction:
 		elif f == 'adc':
 			res = a.get() + b.get()
 		elif f == 'sbb':
-			res = a.get() - b.get() - cpu.flags['cf']
+			res = a.get() - b.get() - self.cpu.get_flag('CF')
 		elif f == 'and':
 			res = a.get() & b.get()
 		elif f == 'sub':
@@ -138,9 +138,7 @@ class modrm_based_instruction:
 			raise Exception("Bad function: " + f)
 			
 		a.set(res)
-		cpu.flags['zf'] = 1 if res == 0 else 0
-		cpu.flags['sf'] = (res >> (a.get_size() - 1)) & 1
-		cpu.flags['pf'] = res & 1
+		self.cpu.update_flags(res, a.get_size(), self.flag_mask())
 			
 	def function(self):
 		if self.opcode in range(0x00, 0x40):
@@ -162,3 +160,17 @@ class modrm_based_instruction:
 			return 1
 		else:
 			return 0
+
+	def flag_mask(self):
+		if self.opcode in range(0x00, 0x40):
+			return 'oszapc'
+		elif self.opcode in range(0x41, 0x69):
+			return ''
+		elif self.opcode in [0x69, 0x6B]:
+			return 'oszapc'
+		elif self.opcode == 0x6A:
+			return ''
+		elif self.opcode in range(0x6C, 0x80):
+			return ''
+		else:
+			raise Exception("Flag mask not know for opcode: " + hex(self.opcode))
