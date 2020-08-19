@@ -1,4 +1,6 @@
-interface Memory {
+package engine;
+
+public interface Memory {
 	/*
 	 * Methods that check access rights
 	 */

@@ -1,6 +1,10 @@
+package engine;
+
 import java.util.stream.IntStream;
 
-class MemoryImpl implements Memory {
+import engine.Memory;
+
+public class MemoryImpl implements Memory {
 	private class Byte {
 		private byte value;
 		private byte access_rights;
