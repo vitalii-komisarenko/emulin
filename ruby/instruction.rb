@@ -104,6 +104,13 @@ class Instruction
 	
 	def execute
 		puts "opcode: %x" % @opcode
+		puts @function
+		if @function == "mov"
+			puts "OK"
+			@destination.write @arguments[0].read
+		else
+			raise "unsupported function: " + @function
+		end
 	end
 
 	

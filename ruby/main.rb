@@ -15,6 +15,15 @@ elf.program_header.entries.each do |ph|
 end
 
 cpu = Cpu.new(mem, elf.elf_header.e_entry)
-while true
-	cpu.exectute_next_instruction
+
+begin
+	while true
+		cpu.exectute_next_instruction
+	end
+rescue
+	for i in 0..15
+		print "register #%d -> " % i
+		cpu.register[i].debug
+	end
+	raise
 end
