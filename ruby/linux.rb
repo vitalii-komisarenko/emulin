@@ -18,6 +18,9 @@ class Linux
 			else
 				raise "not implemented fd: %d" % fd
 			end
+		when 60 # exit
+			puts "exit code: %d" % args[0]
+			@cpu.stopped = true
 		else
 			raise "syscall not implemented: %d (0x%x)" % [number, number]
 		end

@@ -22,7 +22,7 @@ linux = Linux.new(cpu, mem)
 cpu.linux = linux
 
 begin
-	while true
+	while !cpu.stopped
 		cpu.exectute_next_instruction
 	end
 rescue
