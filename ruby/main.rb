@@ -3,7 +3,7 @@ require_relative "memory"
 require_relative "cpu"
 require_relative "linux"
 
-elf = Elf.new("../hello")
+elf = Elf.new("../hello_c-static")
 
 puts "is 64 bit: %s" % elf.elf_header.is_64_bit
 
@@ -30,5 +30,7 @@ rescue
 		print "register #%d -> " % i
 		cpu.register[i].debug
 	end
+	puts "flags: " + cpu.flags.to_s
+
 	raise
 end

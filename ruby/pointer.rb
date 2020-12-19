@@ -1,4 +1,8 @@
+require_relative "utils"
+
 class Pointer
+	attr_reader :size
+
 	def initialize(mem, pos, size)
 		@mem = mem
 		@pos = pos
@@ -9,6 +13,10 @@ class Pointer
 		@mem.read(@pos, @size)
 	end
 	
+	def read_int
+		read.pack("C*").unpack(pack_scheme)[0]
+	end
+	
 	def write(data)
 		if data.length < @size
 			data += Array.new(@size - data.length, 0)
@@ -17,5 +25,24 @@ class Pointer
 			data = data.slice(0, @size)
 		end
 		@mem.write(@pos, data)
+	end
+	
+	def write_int(value)
+		write([value].pack(pack_scheme).unpack("C*"))
+	end
+	
+	def pack_scheme
+		case @size
+		when 1
+			return "C"
+		when 2
+			return "S<"
+		when 4
+			return "L<"
+		when 8
+			return "Q<"
+		else
+			raise "bad size: %d" % size
+		end
 	end
 end

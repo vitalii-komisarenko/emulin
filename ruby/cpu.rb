@@ -5,19 +5,53 @@ require_relative "register"
 class Cpu
 	attr_reader :register
 	attr_writer :linux
-	attr_accessor :stopped
+	attr_accessor :stopped, :flags
 	
 	def initialize(mem, entry_point)
 		@register = []
 		@mem_stream = Stream.new(mem, entry_point)
 		@stopped = false
+		@flags = FlagsRegister.new
 		for i in 1..16
-			@register.push Register.new
+			reg = Register.new
+			reg.write(0, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
+			@register.push reg
 		end
 	end
 	
 	def exectute_next_instruction
 		instruction = Instruction.new(@mem_stream, self, @linux)
 		instruction.execute
+	end
+end
+
+class FlagsRegister
+	def initialize
+		@flags = {
+			'o' => 0,
+			'd' => 0,
+			'i' => 0,
+			's' => 0,
+			'z' => 0,
+			'a' => 0,
+			'p' => 0,
+			'c' => 0, 
+		}
+	end
+	
+	def get_flag(flag)
+		@flags[flag]
+	end
+	
+	def set_flag(flag, value)
+		@flags[flag] = value
+	end
+	
+	def to_s
+		ret = ""
+		for i in ['o', 'd', 'i', 's', 'z', 'a', 'p', 'c']
+			ret += get_flag(i) == 1 ? i : '-'
+		end
+		return ret
 	end
 end

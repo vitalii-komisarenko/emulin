@@ -82,7 +82,28 @@ class Instruction
 		when 0x0F05
 			@function = "syscall"
 		else
-			raise "not implemented: opcode 0x%x" % @opcode
+			if @@reg_regmem_opcodes.key? @opcode
+				arr = @@reg_regmem_opcodes[@opcode]
+				@function = arr[0]
+				is8bit = arr[1]
+				direction_bit = arr[2]
+
+				operand_size = is8bit ? 1 : multi_byte_operand_size
+				
+				modrm = ModRM_Parser.new(stream, @rex, @cpu, operand_size)
+				
+				args = []
+				args.push modrm.register
+				args.push modrm.register_or_memory
+				if direction_bit
+					args[0], args[1] = args[1], args[0]
+				end
+				@arguments = args
+
+				@destination = @arguments[0]
+			else
+				raise "not implemented: opcode 0x%x" % @opcode
+			end
 		end
 	end
 	
@@ -109,7 +130,6 @@ class Instruction
 		puts "opcode: %x" % @opcode
 		puts @function
 		if @function == "mov"
-			puts "OK"
 			@destination.write @arguments[0].read
 		elsif @function == "syscall"
 			syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
@@ -121,12 +141,38 @@ class Instruction
 				@cpu.register[8].read(0, 8).pack("C*").unpack("Q<")[0],
 				@cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
 			])
+		elsif @function == 'xor'
+			p @arguments[0].read_int
+			p @arguments[1].read_int
+			value = @arguments[0].read_int ^ @arguments[1].read_int
+			@destination.write_int value
+			update_flags("...sz.p.", value, @destination.size)
+			@cpu.flags.set_flag("o", 0)
+			@cpu.flags.set_flag("c", 0)
 		else
 			raise "unsupported function: " + @function
 		end
 	end
 
-	
+	def update_flags(pattern, value, size)
+		for flag in pattern.split(//)
+			case flag
+			when 's' # sign flag -- check if the highest bit is set
+				arr = [value].pack("Q<").unpack("C*")
+				arr = Utils.resize(arr, size)
+				@cpu.flags.set_flag('s', arr[arr.length-1] & 0x80 == 0 ? 0 : 1)
+			when 'z' # zero flag
+				@cpu.flags.set_flag('z', value == 0 ? 1 : 0)
+			when 'p' # parity flag -- check if the lowest bit is set
+				@cpu.flags.set_flag('p', value & 1 == 0 ? 1 : 0)
+			when '.', '='
+			else
+				raise "unsupported flag: " + flag
+			end
+		end
+		
+	end
+
 	def multi_byte_operand_size
 		if @rex.w == 1
 			return 8
@@ -136,14 +182,51 @@ class Instruction
 			return 4
 		end
 	end
+	
+	@@reg_regmem_opcodes = {
+		# format: opcode: [operation, is8bit, direction_bit]
+		0x00 => ['add', 1, 1],
+		0x01 => ['add', 0, 1],
+		0x02 => ['add', 1, 0],
+		0x03 => ['add', 0, 0],
+		0x08 => ['or', 1, 1],
+		0x09 => ['or', 0, 1],
+		0x0A => ['or', 1, 0],
+		0x0B => ['or', 0, 0],
+		0x10 => ['adc', 1, 1],
+		0x11 => ['adc', 0, 1],
+		0x12 => ['adc', 1, 0],
+		0x13 => ['adc', 0, 0],
+		0x18 => ['sbb', 1, 1],
+		0x19 => ['sbb', 0, 1],
+		0x1A => ['sbb', 1, 0],
+		0x1B => ['sbb', 0, 0],
+		0x20 => ['and', 1, 1],
+		0x21 => ['and', 0, 1],
+		0x22 => ['and', 1, 0],
+		0x23 => ['and', 0, 0],
+		0x28 => ['sub', 1, 1],
+		0x29 => ['sub', 0, 1],
+		0x2A => ['sub', 1, 0],
+		0x2B => ['sub', 0, 0],
+		0x30 => ['xor', 1, 1],
+		0x31 => ['xor', 0, 1],
+		0x32 => ['xor', 1, 0],
+		0x33 => ['xor', 0, 0],
+		0x38 => ['cmp', 1, 1],
+		0x39 => ['cmp', 0, 1],
+		0x3A => ['cmp', 1, 0],
+		0x3B => ['cmp', 0, 0],
+	}
 end
 
 class ModRM_Parser
-	def initialize(stream, rex, cpu)
+	def initialize(stream, rex, cpu, operand_size)
 		@rex = rex
 		@stream = stream
 		@modrm = stream.read
 		@cpu = cpu
+		@operand_size = operand_size
 	end
 	
 	def mode
@@ -155,13 +238,14 @@ class ModRM_Parser
 	end
 	
 	def register
-		index = ((@modrm & 0x38) >> 3) + 8 * rex.r
-		return @cpu.register[index]
+		index = ((@modrm & 0x38) >> 3) + 8 * @rex.r
+		return Pointer.new(@cpu.register[index], 0, @operand_size)
 	end
 	
-	def rm
+	def register_or_memory
 		if mode == 0x3
-			return @cpu.register[index]
+			index = ((@modrm & 0x38) >> 3) + 8 * @rex.b
+			return Pointer.new(@cpu.register[index], 0, @operand_size)
 		else
 			raise "mode not implemented %d" % mode
 		end
