@@ -66,8 +66,9 @@ end
 
 class Instruction
 	attr_reader :function, :destination, :arguments
-	def initialize(stream, cpu)
+	def initialize(stream, cpu, linux)
 		@cpu = cpu
+		@linux = linux
 		@prefix = InstructionPrefix.new(stream)
 		@rex = REX.new(stream)
 		@opcode = read_opcode(stream)
@@ -78,6 +79,8 @@ class Instruction
 			@function = "mov"
 			@destination = Pointer.new(@cpu.register[reg], 0, size)
 			@arguments = [ stream.read_pointer(size) ]
+		when 0x0F05
+			@function = "syscall"
 		else
 			raise "not implemented: opcode 0x%x" % @opcode
 		end
@@ -108,6 +111,16 @@ class Instruction
 		if @function == "mov"
 			puts "OK"
 			@destination.write @arguments[0].read
+		elsif @function == "syscall"
+			syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
+			@linux.handle_syscall(syscall_number, [
+				@cpu.register[7].read(0, 8).pack("C*").unpack("Q<")[0],
+				@cpu.register[6].read(0, 8).pack("C*").unpack("Q<")[0],
+				@cpu.register[2].read(0, 8).pack("C*").unpack("Q<")[0],
+				@cpu.register[10].read(0, 8).pack("C*").unpack("Q<")[0],
+				@cpu.register[8].read(0, 8).pack("C*").unpack("Q<")[0],
+				@cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
+			])
 		else
 			raise "unsupported function: " + @function
 		end

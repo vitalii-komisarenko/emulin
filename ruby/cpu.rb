@@ -4,6 +4,7 @@ require_relative "register"
 
 class Cpu
 	attr_reader :register
+	attr_writer :linux
 	
 	def initialize(mem, entry_point)
 		@register = []
@@ -14,7 +15,7 @@ class Cpu
 	end
 	
 	def exectute_next_instruction
-		instruction = Instruction.new(@mem_stream, self)
+		instruction = Instruction.new(@mem_stream, self, @linux)
 		instruction.execute
 	end
 end

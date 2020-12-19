@@ -1,6 +1,7 @@
 require_relative "elf_parser"
 require_relative "memory"
 require_relative "cpu"
+require_relative "linux"
 
 elf = Elf.new("../hello")
 
@@ -15,6 +16,10 @@ elf.program_header.entries.each do |ph|
 end
 
 cpu = Cpu.new(mem, elf.elf_header.e_entry)
+
+linux = Linux.new(cpu, mem)
+
+cpu.linux = linux
 
 begin
 	while true
