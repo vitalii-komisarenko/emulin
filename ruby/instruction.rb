@@ -98,9 +98,14 @@ class Instruction
 				if direction_bit
 					args[0], args[1] = args[1], args[0]
 				end
-				@arguments = args
-
-				@destination = @arguments[0]
+				
+				if @function = "mov"
+					@destination = args[0]
+					@arguments = [args[1]]
+				else
+					@arguments = args
+					@destination = @arguments[0]
+				end
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
@@ -217,6 +222,10 @@ class Instruction
 		0x39 => ['cmp', 0, 1],
 		0x3A => ['cmp', 1, 0],
 		0x3B => ['cmp', 0, 0],
+		0x88 => ['mov', 1, 1],
+		0x89 => ['mov', 0, 1],
+		0x8A => ['mov', 1, 0],
+		0x8B => ['mov', 0, 0],
 	}
 end
 
