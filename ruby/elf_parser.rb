@@ -52,6 +52,16 @@ class ElfHeader
 	end
 end
 
+def read_data_to_load_to_memory(file, offset, size_in_file, size_in_memory)
+	puts "offset: %d, size in file: %d, size in memory: %d" % [offset, size_in_file, size_in_memory]
+	file.seek(offset)
+	bytes = file.read(size_in_file).unpack("C*")
+	# fill with zeros if size_in_file < size_in_memory
+	bytes += Array.new(size_in_memory, 0)
+	# take only the part that fits into memory
+	return bytes.slice(0, size_in_memory)
+end
+
 class ElfProgramHeaderEntry
 	def initialize(file, elf_header)
 		if elf_header.is_64_bit
@@ -63,17 +73,20 @@ class ElfProgramHeaderEntry
 			@p_type, @p_offset, @p_vaddr, @p_paddr,
 			@p_filesz, @p_memsz, @p_flags, @p_align = file.read(elf_header.e_phentsize).unpack(scheme)
 		end
+		
+		@data_to_load_to_memory = read_data_to_load_to_memory(file, @p_offset, @p_filesz, @p_memsz)
 	end
 	
 	attr_reader :p_type, :p_flags, :p_offset, :p_vaddr,
-	            :p_paddr, :p_filesz, :p_memsz, :p_align
+	            :p_paddr, :p_filesz, :p_memsz, :p_align,
+				:data_to_load_to_memory
 end
 
 class ElfProgramHeader
 	def initialize(file, elf_header)
 		@entries = []
-		file.seek(elf_header.e_phoff)
-		elf_header.e_phnum.times do
+		for i in 0..elf_header.e_phnum - 1 do
+			file.seek(elf_header.e_phoff + elf_header.e_phentsize * i)
 			@entries.append(ElfProgramHeaderEntry.new(file, elf_header))
 		end
 	end
@@ -99,9 +112,9 @@ end
 class ElfSectionHeader
 	def initialize(file, elf_header)
 		@entries = []
-		file.seek(elf_header.e_shoff)
-		elf_header.e_shnum do
-			@entries.append(ElfProgramHeaderEntry.new(file, elf_header))
+		for i in 0..elf_header.e_shnum - 1 do
+			file.seek(elf_header.e_shoff + i * elf_header.e_shentsize)
+			@entries.append(ElfSectionHeaderEntry.new(file, elf_header))
 		end
 	end
 	
