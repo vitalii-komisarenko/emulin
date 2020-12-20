@@ -88,6 +88,20 @@ class Instruction
 			@function = "mov"
 			@destination = Pointer.new(@cpu.register[reg], 0, size)
 			@arguments = [ stream.read_pointer(size) ]
+		when 0xC0, 0xC1, 0xD0..0xD3
+			regmem_size = @opcode % 2 ? 1 : multi_byte_operand_size
+			modrm = ModRM_Parser.new(stream, @rex, @cpu, regmem_size)
+			@function = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
+			@destination = modrm.register_or_memory
+			arg2 = nil
+			if [0xC0, 0xC1].key? @opcode
+				arg2 = stream.read(1)
+			elsif [0xD0, 0xD1].key? @opcode
+				arg2 = ConstBuffer.new(1)
+			else
+				arg2 = ConstBuffer.new(@cpu.flags.get_flag('c'))
+			end
+			@arguments = [@destination, arg2]
 		when 0x0F05
 			@function = "syscall"
 		else
