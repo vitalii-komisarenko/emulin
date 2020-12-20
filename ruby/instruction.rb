@@ -73,6 +73,12 @@ class Instruction
 		@rex = REX.new(stream)
 		@opcode = read_opcode(stream)
 		case @opcode
+		when 0x50..0x57
+			@function = "push"
+			@arguments = [ decode_register_from_opcode(multi_byte_operand_size) ]
+		when 0x58..0x5F
+			@function = "pop"
+			@destination = decode_register_from_opcode(multi_byte_operand_size)
 		when 0x80, 0x81, 0x83
 			regmem_size = @opcode == 0x80 ? 1 : multi_byte_operand_size
 			modrm = ModRM_Parser.new(stream, @rex, @cpu, regmem_size)
