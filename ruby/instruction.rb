@@ -83,10 +83,8 @@ class Instruction
 			arg2 = stream.read(imm_size)
 			@arguments = [@destination, arg2]
 		when 0xb8..0xbf
-			reg = @opcode - 0xb8 + 8 * @rex.b
-			size = multi_byte_operand_size
 			@function = "mov"
-			@destination = Pointer.new(@cpu.register[reg], 0, size)
+			@destination = decode_register_from_opcode(multi_byte_operand_size)
 			@arguments = [ stream.read_pointer(size) ]
 		when 0xC0, 0xC1, 0xD0..0xD3
 			regmem_size = @opcode % 2 ? 1 : multi_byte_operand_size
@@ -135,6 +133,11 @@ class Instruction
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
 		end
+	end
+	
+	def decode_register_from_opcode(size)
+		reg = @opcode - 0xb8 + 8 * @rex.b
+		return Pointer.new(@cpu.register[reg], 0, size)
 	end
 	
 	def read_opcode(stream)
