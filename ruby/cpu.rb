@@ -1,17 +1,19 @@
 require_relative "stream"
 require_relative "instruction"
 require_relative "register"
+require_relative "stack"
 
 class Cpu
 	attr_reader :register
 	attr_writer :linux
-	attr_accessor :stopped, :flags
+	attr_accessor :stopped, :flags, :stack
 	
-	def initialize(mem, entry_point)
+	def initialize(mem, entry_point, stack_bottom)
 		@register = []
 		@mem_stream = Stream.new(mem, entry_point)
 		@stopped = false
 		@flags = FlagsRegister.new
+		@stack = Stack.new(mem, stack_bottom)
 		for i in 1..16
 			reg = Register.new
 			reg.write(0, [i, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])

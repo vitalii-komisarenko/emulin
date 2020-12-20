@@ -15,7 +15,7 @@ elf.program_header.entries.each do |ph|
 	mem.write(ph.p_vaddr, ph.data_to_load_to_memory)
 end
 
-cpu = Cpu.new(mem, elf.elf_header.e_entry)
+cpu = Cpu.new(mem, elf.elf_header.e_entry, 0x123456789ABCDEF)
 
 linux = Linux.new(cpu, mem)
 
@@ -31,6 +31,7 @@ rescue
 		cpu.register[i].debug
 	end
 	puts "flags: " + cpu.flags.to_s
+	puts "stack: 0x%x" % cpu.stack.pos
 
 	raise
 end
