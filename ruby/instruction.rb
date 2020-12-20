@@ -106,6 +106,8 @@ class Instruction
 					@arguments = args
 					@destination = @arguments[0]
 				end
+			elsif @@no_args_opcodes.key? @opcode
+				@function = @@reg_regmem_opcodes[@opcode]
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
@@ -134,9 +136,10 @@ class Instruction
 	def execute
 		puts "opcode: %x" % @opcode
 		puts @function
-		if @function == "mov"
+		case @function
+		when "mov"
 			@destination.write @arguments[0].read
-		elsif @function == "syscall"
+		when "syscall"
 			syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
 			@linux.handle_syscall(syscall_number, [
 				@cpu.register[7].read(0, 8).pack("C*").unpack("Q<")[0],
@@ -146,7 +149,7 @@ class Instruction
 				@cpu.register[8].read(0, 8).pack("C*").unpack("Q<")[0],
 				@cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
 			])
-		elsif @function == 'xor'
+		when 'xor'
 			p @arguments[0].read_int
 			p @arguments[1].read_int
 			value = @arguments[0].read_int ^ @arguments[1].read_int
@@ -154,6 +157,16 @@ class Instruction
 			update_flags("...sz.p.", value, @destination.size)
 			@cpu.flags.set_flag("o", 0)
 			@cpu.flags.set_flag("c", 0)
+		when 'cmc' # Complement Carry Flag
+			@cpu.flags.set_flag('c', 1 - @cpu.flags.get_flag('c')) 
+		when 'clc', # Clear Carry Flag
+			@cpu.flags.set_flag('c', 0)
+		when 'stc', # Set Carry Flag
+			@cpu.flags.set_flag('c', 1)
+		when 'cld', # Clear Direction Flag
+			@cpu.flags.set_flag('d', 0)
+		when 'std', # Set Direction Flag
+			@cpu.flags.set_flag('d', 1)
 		else
 			raise "unsupported function: " + @function
 		end
@@ -226,6 +239,16 @@ class Instruction
 		0x89 => ['mov', 0, 1],
 		0x8A => ['mov', 1, 0],
 		0x8B => ['mov', 0, 0],
+	}
+	
+	@@no_args_opcodes = {
+        0xF5 => 'cmc', # Complement Carry Flag
+        0xF8 => 'clc', # Clear Carry Flag
+        0xF9 => 'stc', # Set Carry Flag
+        0xFA => 'cli', # Clear Interrupt Flag
+        0xFB => 'sti', # Set Interrupt Flag
+        0xFC => 'cld', # Clear Direction Flag
+        0xFD => 'std', # Set Direction Flag
 	}
 end
 
