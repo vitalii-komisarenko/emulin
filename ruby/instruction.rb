@@ -150,9 +150,19 @@ class Instruction
 				@cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
 			])
 		when 'xor'
-			p @arguments[0].read_int
-			p @arguments[1].read_int
 			value = @arguments[0].read_int ^ @arguments[1].read_int
+			@destination.write_int value
+			update_flags("...sz.p.", value, @destination.size)
+			@cpu.flags.set_flag("o", 0)
+			@cpu.flags.set_flag("c", 0)
+		when 'or'
+			value = @arguments[0].read_int | @arguments[1].read_int
+			@destination.write_int value
+			update_flags("...sz.p.", value, @destination.size)
+			@cpu.flags.set_flag("o", 0)
+			@cpu.flags.set_flag("c", 0)
+		when 'and'
+			value = @arguments[0].read_int & @arguments[1].read_int
 			@destination.write_int value
 			update_flags("...sz.p.", value, @destination.size)
 			@cpu.flags.set_flag("o", 0)
