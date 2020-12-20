@@ -73,6 +73,15 @@ class Instruction
 		@rex = REX.new(stream)
 		@opcode = read_opcode(stream)
 		case @opcode
+		when 0x80, 0x81, 0x83
+			regmem_size = @opcode == 0x80 ? 1 : multi_byte_operand_size
+			modrm = ModRM_Parser.new(stream, @rex, @cpu, regmem_size)
+			@function = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
+			@destination = modrm.register_or_memory
+			
+			imm_size = @opcode == 0x80 ? 1 : @prefix.operand_size_overridden ? 2 : 4
+			arg2 = stream.read(imm_size)
+			@arguments = [@destination, arg2]
 		when 0xb8..0xbf
 			reg = @opcode - 0xb8 + 8 * @rex.b
 			size = multi_byte_operand_size
