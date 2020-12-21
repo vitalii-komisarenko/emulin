@@ -65,7 +65,7 @@ class REX
 end
 
 class Instruction
-	attr_reader :function, :destination, :arguments
+	attr_reader :function, :arguments
 	def initialize(stream, cpu, linux)
 		@cpu = cpu
 		@linux = linux
@@ -78,25 +78,25 @@ class Instruction
 			@arguments = [ decode_register_from_opcode(multi_byte_operand_size) ]
 		when 0x58..0x5F
 			@function = "pop"
-			@destination = decode_register_from_opcode(multi_byte_operand_size)
+			@arguments = [ decode_register_from_opcode(multi_byte_operand_size) ]
 		when 0x80, 0x81, 0x83
 			regmem_size = @opcode == 0x80 ? 1 : multi_byte_operand_size
 			modrm = ModRM_Parser.new(stream, @rex, @cpu, regmem_size)
 			@function = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
-			@destination = modrm.register_or_memory
+			@arguments = [ modrm.register_or_memory ]
 			
 			imm_size = @opcode == 0x80 ? 1 : @prefix.operand_size_overridden ? 2 : 4
 			arg2 = stream.read(imm_size)
-			@arguments = [@destination, arg2]
+			@arguments.push(arg2)
 		when 0xb8..0xbf
 			@function = "mov"
-			@destination = decode_register_from_opcode(multi_byte_operand_size)
-			@arguments = [ stream.read_pointer(size) ]
+			@arguments = [ decode_register_from_opcode(multi_byte_operand_size) ]
+			@arguments += [ stream.read_pointer(size) ]
 		when 0xC0, 0xC1, 0xD0..0xD3
 			regmem_size = @opcode % 2 ? 1 : multi_byte_operand_size
 			modrm = ModRM_Parser.new(stream, @rex, @cpu, regmem_size)
 			@function = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
-			@destination = modrm.register_or_memory
+			@arguments = [ modrm.register_or_memory ]
 			arg2 = nil
 			if [0xC0, 0xC1].key? @opcode
 				arg2 = stream.read(1)
@@ -105,7 +105,7 @@ class Instruction
 			else
 				arg2 = ConstBuffer.new(@cpu.flags.get_flag('c'))
 			end
-			@arguments = [@destination, arg2]
+			@arguments.push arg2
 		when 0x0F05
 			@function = "syscall"
 		else
@@ -126,13 +126,7 @@ class Instruction
 					args[0], args[1] = args[1], args[0]
 				end
 				
-				if @function = "mov"
-					@destination = args[0]
-					@arguments = [args[1]]
-				else
-					@arguments = args
-					@destination = @arguments[0]
-				end
+				@arguments = args
 			elsif @@no_args_opcodes.key? @opcode
 				@function = @@reg_regmem_opcodes[@opcode]
 			else
@@ -170,7 +164,7 @@ class Instruction
 		puts @function
 		case @function
 		when "mov"
-			@destination.write @arguments[0].read
+			@arguments[0].write @arguments[1].read
 		when "syscall"
 			syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
 			@linux.handle_syscall(syscall_number, [
@@ -183,20 +177,20 @@ class Instruction
 			])
 		when 'xor'
 			value = @arguments[0].read_int ^ @arguments[1].read_int
-			@destination.write_int value
-			update_flags("...sz.p.", value, @destination.size)
+			@arguments[0].write_int value
+			update_flags("...sz.p.", value, @arguments[0].size)
 			@cpu.flags.set_flag("o", 0)
 			@cpu.flags.set_flag("c", 0)
 		when 'or'
 			value = @arguments[0].read_int | @arguments[1].read_int
-			@destination.write_int value
-			update_flags("...sz.p.", value, @destination.size)
+			@arguments[0].write_int value
+			update_flags("...sz.p.", value, @arguments[0].size)
 			@cpu.flags.set_flag("o", 0)
 			@cpu.flags.set_flag("c", 0)
 		when 'and'
 			value = @arguments[0].read_int & @arguments[1].read_int
-			@destination.write_int value
-			update_flags("...sz.p.", value, @destination.size)
+			@arguments[0].write_int value
+			update_flags("...sz.p.", value, @arguments[0].size)
 			@cpu.flags.set_flag("o", 0)
 			@cpu.flags.set_flag("c", 0)
 		when 'cmc' # Complement Carry Flag
