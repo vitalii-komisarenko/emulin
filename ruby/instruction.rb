@@ -93,28 +93,24 @@ class Instruction
 			@func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
 			@args = [ modrm.register_or_memory ]
 			
-			imm_size = @opcode == 0x80 ? 1 : @prefix.operand_size_overridden ? 2 : 4
-			arg2 = stream.read(imm_size)
-			@args.push(arg2)
+			decode_immediate_16or32
 		when 0xb8..0xbf
 			@func = "mov"
 			@size = multi_byte
 			decode_register_from_opcode
-			@args += [ stream.read_pointer(@size) ]
+			decode_immediate
 		when 0xC0, 0xC1, 0xD0..0xD3
 			@size = @opcode % 2 ? 1 : multi_byte
 			modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
 			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
 			@args = [ modrm.register_or_memory ]
-			arg2 = nil
 			if [0xC0, 0xC1].key? @opcode
-				arg2 = stream.read(1)
+				decode_immediate 1
 			elsif [0xD0, 0xD1].key? @opcode
-				arg2 = ConstBuffer.new(1)
+				@args.push ConstBuffer.new(1)
 			else
-				arg2 = ConstBuffer.new(@cpu.flags.get_flag('c'))
+				@args.push ConstBuffer.new(@cpu.flags.get_flag('c'))
 			end
-			@args.push arg2
 		when 0x0F05
 			@func = "syscall"
 		else
@@ -147,6 +143,15 @@ class Instruction
 	def decode_register_from_opcode
 		reg = @opcode - 0xb8 + 8 * @rex.b
 		@args.push Pointer.new(@cpu.register[reg], 0, @size)
+	end
+	
+	def decode_immediate(size = @size)
+		@args.push stream.read_pointer(@size)
+	end
+
+	def decode_immediate_16or32
+		size = @size == 8 ? 4 : @size
+		decode_immediate(size)
 	end
 	
 	def read_opcode(stream)
