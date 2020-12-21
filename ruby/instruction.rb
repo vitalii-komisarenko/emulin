@@ -117,21 +117,18 @@ class Instruction
 			if @@reg_regmem_opcodes.key? @opcode
 				arr = @@reg_regmem_opcodes[@opcode]
 				@func = arr[0]
-				is8bit = arr[1]
-				direction_bit = arr[2]
+				is8bit = arr[1] == 1
+				direction_bit = arr[2] == 1
 
 				@size = is8bit ? 1 : multi_byte
 				
 				modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
 				
-				args = []
-				args.push modrm.register
-				args.push modrm.register_or_memory
+				@args.push modrm.register
+				@args.push modrm.register_or_memory
 				if direction_bit
-					args[0], args[1] = args[1], args[0]
+					@args[0], @args[1] = @args[1], @args[0]
 				end
-				
-				@args = args
 			elsif @@no_args_opcodes.key? @opcode
 				@func = @@reg_regmem_opcodes[@opcode]
 			else
