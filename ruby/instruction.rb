@@ -75,13 +75,15 @@ class Instruction
 		case @opcode
 		when 0x50..0x57
 			@function = "push"
-			decode_register_from_opcode(multi_byte_operand_size)
+			@size = multi_byte
+			decode_register_from_opcode
 		when 0x58..0x5F
 			@function = "pop"
-			decode_register_from_opcode(multi_byte_operand_size)
+			@size = multi_byte
+			decode_register_from_opcode
 		when 0x80, 0x81, 0x83
-			regmem_size = @opcode == 0x80 ? 1 : multi_byte_operand_size
-			modrm = ModRM_Parser.new(stream, @rex, @cpu, regmem_size)
+			@size = @opcode == 0x80 ? 1 : multi_byte
+			modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
 			@function = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
 			@arguments = [ modrm.register_or_memory ]
 			
@@ -90,11 +92,12 @@ class Instruction
 			@arguments.push(arg2)
 		when 0xb8..0xbf
 			@function = "mov"
-			decode_register_from_opcode(multi_byte_operand_size)
-			@arguments += [ stream.read_pointer(size) ]
+			@size = multi_byte
+			decode_register_from_opcode
+			@arguments += [ stream.read_pointer(@size) ]
 		when 0xC0, 0xC1, 0xD0..0xD3
-			regmem_size = @opcode % 2 ? 1 : multi_byte_operand_size
-			modrm = ModRM_Parser.new(stream, @rex, @cpu, regmem_size)
+			@size = @opcode % 2 ? 1 : multi_byte
+			modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
 			@function = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
 			@arguments = [ modrm.register_or_memory ]
 			arg2 = nil
@@ -115,9 +118,9 @@ class Instruction
 				is8bit = arr[1]
 				direction_bit = arr[2]
 
-				operand_size = is8bit ? 1 : multi_byte_operand_size
+				@size = is8bit ? 1 : multi_byte
 				
-				modrm = ModRM_Parser.new(stream, @rex, @cpu, operand_size)
+				modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
 				
 				args = []
 				args.push modrm.register
@@ -135,9 +138,9 @@ class Instruction
 		end
 	end
 	
-	def decode_register_from_opcode(size)
+	def decode_register_from_opcode
 		reg = @opcode - 0xb8 + 8 * @rex.b
-		@arguments.push Pointer.new(@cpu.register[reg], 0, size)
+		@arguments.push Pointer.new(@cpu.register[reg], 0, @size)
 	end
 	
 	def read_opcode(stream)
@@ -227,7 +230,8 @@ class Instruction
 		
 	end
 
-	def multi_byte_operand_size
+	# calculate operand size if operand size is not 1 ("multi-byte")
+	def multi_byte
 		if @rex.w == 1
 			return 8
 		elsif @prefix.operand_size_overridden
