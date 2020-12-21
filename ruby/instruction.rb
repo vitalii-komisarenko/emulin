@@ -67,11 +67,14 @@ end
 class Instruction
 	attr_reader :function, :arguments
 	def initialize(stream, cpu, linux)
+		@stream = stream
 		@cpu = cpu
 		@linux = linux
+
 		@prefix = InstructionPrefix.new(stream)
 		@rex = REX.new(stream)
 		@opcode = read_opcode(stream)
+		@modrm = nil
 		
 		@func = nil # operation to be done (e.g. 'add', 'mov' etc.)
 		@size = nil # operand size (in bytes)
@@ -89,9 +92,9 @@ class Instruction
 			decode_register_from_opcode
 		when 0x80, 0x81, 0x83
 			@size = @opcode == 0x80 ? 1 : multi_byte
-			modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
-			@func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
-			@args = [ modrm.register_or_memory ]
+			parse_modrm
+			@func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][@modrm.opcode_ext]
+			@args = [ @modrm.register_or_memory ]
 			
 			decode_immediate_16or32
 		when 0xb8..0xbf
@@ -101,9 +104,9 @@ class Instruction
 			decode_immediate
 		when 0xC0, 0xC1, 0xD0..0xD3
 			@size = @opcode % 2 ? 1 : multi_byte
-			modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
-			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
-			@args = [ modrm.register_or_memory ]
+			parse_modrm
+			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][@modrm.opcode_ext]
+			@args = [ @modrm.register_or_memory ]
 			if [0xC0, 0xC1].key? @opcode
 				decode_immediate 1
 			elsif [0xD0, 0xD1].key? @opcode
@@ -122,10 +125,10 @@ class Instruction
 
 				@size = is8bit ? 1 : multi_byte
 				
-				modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
+				parse_modrm
 				
-				@args.push modrm.register
-				@args.push modrm.register_or_memory
+				@args.push @modrm.register
+				@args.push @modrm.register_or_memory
 				if direction_bit
 					@args[0], @args[1] = @args[1], @args[0]
 				end
@@ -150,7 +153,11 @@ class Instruction
 		size = @size == 8 ? 4 : @size
 		decode_immediate(size)
 	end
-	
+
+	def parse_modrm
+		@modrm = ModRM_Parser.new(@stream, @rex, @cpu, @size)
+	end
+
 	def read_opcode(stream)
 		byte1 = stream.read
 		if byte1 == 0x0F
