@@ -75,10 +75,10 @@ class Instruction
 		case @opcode
 		when 0x50..0x57
 			@function = "push"
-			@arguments = [ decode_register_from_opcode(multi_byte_operand_size) ]
+			decode_register_from_opcode(multi_byte_operand_size)
 		when 0x58..0x5F
 			@function = "pop"
-			@arguments = [ decode_register_from_opcode(multi_byte_operand_size) ]
+			decode_register_from_opcode(multi_byte_operand_size)
 		when 0x80, 0x81, 0x83
 			regmem_size = @opcode == 0x80 ? 1 : multi_byte_operand_size
 			modrm = ModRM_Parser.new(stream, @rex, @cpu, regmem_size)
@@ -90,7 +90,7 @@ class Instruction
 			@arguments.push(arg2)
 		when 0xb8..0xbf
 			@function = "mov"
-			@arguments = [ decode_register_from_opcode(multi_byte_operand_size) ]
+			decode_register_from_opcode(multi_byte_operand_size)
 			@arguments += [ stream.read_pointer(size) ]
 		when 0xC0, 0xC1, 0xD0..0xD3
 			regmem_size = @opcode % 2 ? 1 : multi_byte_operand_size
@@ -137,7 +137,7 @@ class Instruction
 	
 	def decode_register_from_opcode(size)
 		reg = @opcode - 0xb8 + 8 * @rex.b
-		return Pointer.new(@cpu.register[reg], 0, size)
+		@arguments.push Pointer.new(@cpu.register[reg], 0, size)
 	end
 	
 	def read_opcode(stream)
