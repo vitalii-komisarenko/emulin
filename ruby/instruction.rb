@@ -72,34 +72,40 @@ class Instruction
 		@prefix = InstructionPrefix.new(stream)
 		@rex = REX.new(stream)
 		@opcode = read_opcode(stream)
+		
+		@func = nil # operation to be done (e.g. 'add', 'mov' etc.)
+		@size = nil # operand size (in bytes)
+		@args = []  # operation arguments. If operation result is to be stored
+		            # the destination is encoded in the first argument
+		
 		case @opcode
 		when 0x50..0x57
-			@function = "push"
+			@func = "push"
 			@size = multi_byte
 			decode_register_from_opcode
 		when 0x58..0x5F
-			@function = "pop"
+			@func = "pop"
 			@size = multi_byte
 			decode_register_from_opcode
 		when 0x80, 0x81, 0x83
 			@size = @opcode == 0x80 ? 1 : multi_byte
 			modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
-			@function = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
-			@arguments = [ modrm.register_or_memory ]
+			@func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
+			@args = [ modrm.register_or_memory ]
 			
 			imm_size = @opcode == 0x80 ? 1 : @prefix.operand_size_overridden ? 2 : 4
 			arg2 = stream.read(imm_size)
-			@arguments.push(arg2)
+			@args.push(arg2)
 		when 0xb8..0xbf
-			@function = "mov"
+			@func = "mov"
 			@size = multi_byte
 			decode_register_from_opcode
-			@arguments += [ stream.read_pointer(@size) ]
+			@args += [ stream.read_pointer(@size) ]
 		when 0xC0, 0xC1, 0xD0..0xD3
 			@size = @opcode % 2 ? 1 : multi_byte
 			modrm = ModRM_Parser.new(stream, @rex, @cpu, @size)
-			@function = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
-			@arguments = [ modrm.register_or_memory ]
+			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
+			@args = [ modrm.register_or_memory ]
 			arg2 = nil
 			if [0xC0, 0xC1].key? @opcode
 				arg2 = stream.read(1)
@@ -108,13 +114,13 @@ class Instruction
 			else
 				arg2 = ConstBuffer.new(@cpu.flags.get_flag('c'))
 			end
-			@arguments.push arg2
+			@args.push arg2
 		when 0x0F05
-			@function = "syscall"
+			@func = "syscall"
 		else
 			if @@reg_regmem_opcodes.key? @opcode
 				arr = @@reg_regmem_opcodes[@opcode]
-				@function = arr[0]
+				@func = arr[0]
 				is8bit = arr[1]
 				direction_bit = arr[2]
 
@@ -129,9 +135,9 @@ class Instruction
 					args[0], args[1] = args[1], args[0]
 				end
 				
-				@arguments = args
+				@args = args
 			elsif @@no_args_opcodes.key? @opcode
-				@function = @@reg_regmem_opcodes[@opcode]
+				@func = @@reg_regmem_opcodes[@opcode]
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
@@ -140,7 +146,7 @@ class Instruction
 	
 	def decode_register_from_opcode
 		reg = @opcode - 0xb8 + 8 * @rex.b
-		@arguments.push Pointer.new(@cpu.register[reg], 0, @size)
+		@args.push Pointer.new(@cpu.register[reg], 0, @size)
 	end
 	
 	def read_opcode(stream)
@@ -164,10 +170,10 @@ class Instruction
 	
 	def execute
 		puts "opcode: %x" % @opcode
-		puts @function
-		case @function
+		puts @func
+		case @func
 		when "mov"
-			@arguments[0].write @arguments[1].read
+			@args[0].write @args[1].read
 		when "syscall"
 			syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
 			@linux.handle_syscall(syscall_number, [
@@ -179,21 +185,21 @@ class Instruction
 				@cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
 			])
 		when 'xor'
-			value = @arguments[0].read_int ^ @arguments[1].read_int
-			@arguments[0].write_int value
-			update_flags("...sz.p.", value, @arguments[0].size)
+			value = @args[0].read_int ^ @args[1].read_int
+			@args[0].write_int value
+			update_flags("...sz.p.", value, @args[0].size)
 			@cpu.flags.set_flag("o", 0)
 			@cpu.flags.set_flag("c", 0)
 		when 'or'
-			value = @arguments[0].read_int | @arguments[1].read_int
-			@arguments[0].write_int value
-			update_flags("...sz.p.", value, @arguments[0].size)
+			value = @args[0].read_int | @args[1].read_int
+			@args[0].write_int value
+			update_flags("...sz.p.", value, @args[0].size)
 			@cpu.flags.set_flag("o", 0)
 			@cpu.flags.set_flag("c", 0)
 		when 'and'
-			value = @arguments[0].read_int & @arguments[1].read_int
-			@arguments[0].write_int value
-			update_flags("...sz.p.", value, @arguments[0].size)
+			value = @args[0].read_int & @args[1].read_int
+			@args[0].write_int value
+			update_flags("...sz.p.", value, @args[0].size)
 			@cpu.flags.set_flag("o", 0)
 			@cpu.flags.set_flag("c", 0)
 		when 'cmc' # Complement Carry Flag
@@ -207,7 +213,7 @@ class Instruction
 		when 'std', # Set Direction Flag
 			@cpu.flags.set_flag('d', 1)
 		else
-			raise "unsupported function: " + @function
+			raise "unsupported function: " + @func
 		end
 	end
 
