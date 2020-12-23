@@ -160,7 +160,8 @@ class Instruction
 	end
 
 	def parse_modrm
-		@modrm = ModRM_Parser.new(@stream, @rex, @cpu, @size)
+		address_size = @prefix.address_size_overridden ? 4 : 8
+		@modrm = ModRM_Parser.new(@stream, @rex, @cpu, @size, address_size)
 	end
 
 	def read_opcode(stream)
@@ -353,12 +354,13 @@ class Instruction
 end
 
 class ModRM_Parser
-	def initialize(stream, rex, cpu, operand_size)
+	def initialize(stream, rex, cpu, operand_size, address_size)
 		@rex = rex
 		@stream = stream
 		@modrm = stream.read
 		@cpu = cpu
 		@operand_size = operand_size
+		@address_size = address_size
 	end
 	
 	def mode
@@ -375,11 +377,70 @@ class ModRM_Parser
 	end
 	
 	def register_or_memory
-		if mode == 0x3
-			index = ((@modrm & 0x38) >> 3) + 8 * @rex.b
-			return Pointer.new(@cpu.register[index], 0, @operand_size)
+		regmem = ((@modrm & 0x38) >> 3) + 8 * @rex.b
+		if mode == 0x03
+			return Pointer.new(@cpu.register[regmem], 0, @operand_size)		
 		else
-			raise "mode not implemented %d" % mode
+			if [0x4, 0xC].include? regmem
+				return sib
+			elsif [0x5, 0xD].include? regmem
+				raise "RIP/EIP addressing not implemented"
+			else
+				addr = @cpu.register[regmem].read_int(0, @address_size)
+				case mode
+				when 0x1
+					addr += disp8
+				when 0x2
+					addr += disp32
+				end
+				return memory_at (addr % (2 ** (8 * @address_size)))
+			end
+		end
+	end
+	
+	def memory_at(pos)
+		p "memory_at %x" % pos
+		return Pointer.new(@stream.mem, pos % @address_size, @operand_size) 
+	end
+	
+	def disp32
+		b1 = @stream.read
+		b2 = @stream.read
+		b3 = @stream.read
+		b4 = @stream.read
+		
+		return (256 ** 3) * (b4 - 0x80) + (256 ** 2) * b3 + 256 * b2 + b1
+	end
+	
+	def disp8
+		return @stream.read - 0x80
+	end
+	
+	def sib
+		sib = @stream.read
+		@scale = 2 ** (sib >> 6)
+		@index_reg = ((sib >> 3) & 0x07) + 8 * @rex.x
+		@base_reg = (sib & 0x07) + 8 * @rex.b
+
+		if @index_reg == 4
+			@index = 0
+		else
+			@index = @cpu.register[@index_reg].read_int(0, @address_size)
+		end
+
+		@base = @cpu.register[@base_reg].read_int(0, @address_size)
+
+		case mode
+		when 0x0
+			if [0x5, 0xD].include? @base_reg
+				return memory_at(@index * @scale + disp32)
+			else
+				return memory_at(@base + @index * @scale)
+			end
+		when 0x1
+			return memory_at(@base + @index * @scale + disp8)
+		when 0x2			
+			return memory_at(@base + @index * @scale + disp32)			
 		end
 	end
 end

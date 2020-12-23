@@ -3,6 +3,7 @@ require_relative "pointer"
 
 class Stream
 	attr_accessor :pos
+	attr_reader :mem
 
 	def initialize(memory, pos)
 		@mem = memory
