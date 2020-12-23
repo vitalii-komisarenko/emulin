@@ -2,6 +2,8 @@ require_relative "addressable"
 require_relative "pointer"
 
 class Stream
+	attr_accessor :pos
+
 	def initialize(memory, pos)
 		@mem = memory
 		@pos = pos

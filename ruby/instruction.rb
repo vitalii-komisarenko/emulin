@@ -90,6 +90,11 @@ class Instruction
 			@func = "pop"
 			@size = multi_byte
 			decode_register_from_opcode
+		when 0x70..0x7F
+			@func = ['jo', 'jno', 'jb', 'jnb', 'jz', 'jnz', 'jbe', 'jnbe',
+			         'js', 'jns', 'jp', 'jnp', 'jl', 'jnl', 'jle', 'jnle'][@opcode - 0x70]
+			rel8 = @stream.read_pointer(1).read_signed
+			@args.push(@stream.pos + rel8)
 		when 0x80, 0x81, 0x83
 			@size = @opcode == 0x80 ? 1 : multi_byte
 			parse_modrm
@@ -211,6 +216,38 @@ class Instruction
 			update_flags("...sz.p.", value, @args[0].size)
 			@cpu.flags.set_flag("o", 0)
 			@cpu.flags.set_flag("c", 0)
+		when 'jo'
+			jump @arg[0] if @cpu.flags.get_flag('o') == 1
+		when 'jno'
+			jump @arg[0] if @cpu.flags.get_flag('o') == 0
+		when 'jb'
+			jump @arg[0] if @cpu.flags.get_flag('c') == 1
+		when 'jnb'
+			jump @arg[0] if @cpu.flags.get_flag('c') == 0
+		when 'jz'
+			jump @arg[0] if @cpu.flags.get_flag('z') == 1
+		when 'jnz'
+			jump @arg[0] if @cpu.flags.get_flag('z') == 0
+		when 'jbe'
+			jump @arg[0] if (@cpu.flags.get_flag('c') == 1) and (@cpu.flags.get_flag('z') == 1)
+		when 'jnbe'
+			jump @arg[0] if (@cpu.flags.get_flag('c') == 0) and (@cpu.flags.get_flag('z') == 0)
+		when 'js'
+			jump @arg[0] if @cpu.flags.get_flag('s') == 1
+		when 'jns'
+			jump @arg[0] if @cpu.flags.get_flag('s') == 0
+		when 'jp'
+			jump @arg[0] if @cpu.flags.get_flag('p') == 1
+		when 'jnp'
+			jump @arg[0] if @cpu.flags.get_flag('p') == 0
+		when 'jl'
+			jump @arg[0] if @cpu.flags.get_flag('s') != @cpu.flags.get_flag('o')
+		when 'jnl'
+			jump @arg[0] if @cpu.flags.get_flag('s') == @cpu.flags.get_flag('o')
+		when 'jle'
+			jump @arg[0] if (@cpu.flags.get_flag('z') == 1) and (@cpu.flags.get_flag('s') != @cpu.flags.get_flag('o'))
+		when 'jnle'
+			jump @arg[0] if (@cpu.flags.get_flag('z') == 0) and (@cpu.flags.get_flag('s') == @cpu.flags.get_flag('o'))
 		when 'cmc' # Complement Carry Flag
 			@cpu.flags.set_flag('c', 1 - @cpu.flags.get_flag('c')) 
 		when 'clc', # Clear Carry Flag
@@ -254,6 +291,10 @@ class Instruction
 		else
 			return 4
 		end
+	end
+	
+	def jump(pos)
+		@stream.pos = pos
 	end
 	
 	@@reg_regmem_opcodes = {

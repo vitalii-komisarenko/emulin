@@ -17,6 +17,10 @@ class Pointer
 		read.pack("C*").unpack(pack_scheme)[0]
 	end
 	
+	def read_signed
+		read_int - 2 ** (8 * @size)
+	end
+	
 	def write(data)
 		if data.length < @size
 			data += Array.new(@size - data.length, 0)
