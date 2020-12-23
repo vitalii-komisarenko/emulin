@@ -117,7 +117,7 @@ class Instruction
 			elsif [0xD0, 0xD1].key? @opcode
 				@args.push ConstBuffer.new(1)
 			else
-				@args.push ConstBuffer.new(@cpu.flags.get_flag('c'))
+				@args.push ConstBuffer.new(@cpu.flags.c ? 1 : 0)
 			end
 		when 0x0F05
 			@func = "syscall"
@@ -202,62 +202,62 @@ class Instruction
 			value = @args[0].read_int ^ @args[1].read_int
 			@args[0].write_int value
 			update_flags("...sz.p.", value, @args[0].size)
-			@cpu.flags.set_flag("o", 0)
-			@cpu.flags.set_flag("c", 0)
+			@cpu.flags.o = false
+			@cpu.flags.c = false
 		when 'or'
 			value = @args[0].read_int | @args[1].read_int
 			@args[0].write_int value
 			update_flags("...sz.p.", value, @args[0].size)
-			@cpu.flags.set_flag("o", 0)
-			@cpu.flags.set_flag("c", 0)
+			@cpu.flags.o = false
+			@cpu.flags.c = false
 		when 'and'
 			value = @args[0].read_int & @args[1].read_int
 			@args[0].write_int value
 			update_flags("...sz.p.", value, @args[0].size)
-			@cpu.flags.set_flag("o", 0)
-			@cpu.flags.set_flag("c", 0)
+			@cpu.flags.o = false
+			@cpu.flags.c = false
 		when 'jo'
-			jump @arg[0] if @cpu.flags.get_flag('o') == 1
+			jump @arg[0] if @cpu.flags.o
 		when 'jno'
-			jump @arg[0] if @cpu.flags.get_flag('o') == 0
+			jump @arg[0] if !@cpu.flags.o
 		when 'jb'
-			jump @arg[0] if @cpu.flags.get_flag('c') == 1
+			jump @arg[0] if @cpu.flags.c
 		when 'jnb'
-			jump @arg[0] if @cpu.flags.get_flag('c') == 0
+			jump @arg[0] if !@cpu.flags.c
 		when 'jz'
-			jump @arg[0] if @cpu.flags.get_flag('z') == 1
+			jump @arg[0] if @cpu.flags.z
 		when 'jnz'
-			jump @arg[0] if @cpu.flags.get_flag('z') == 0
+			jump @arg[0] if !@cpu.flags.z
 		when 'jbe'
-			jump @arg[0] if (@cpu.flags.get_flag('c') == 1) and (@cpu.flags.get_flag('z') == 1)
+			jump @arg[0] if @cpu.flags.c and @cpu.flags.z
 		when 'jnbe'
-			jump @arg[0] if (@cpu.flags.get_flag('c') == 0) and (@cpu.flags.get_flag('z') == 0)
+			jump @arg[0] if !@cpu.flags.c and !@cpu.flags.z
 		when 'js'
-			jump @arg[0] if @cpu.flags.get_flag('s') == 1
+			jump @arg[0] if @cpu.flags.s
 		when 'jns'
-			jump @arg[0] if @cpu.flags.get_flag('s') == 0
+			jump @arg[0] if !@cpu.flags.s
 		when 'jp'
-			jump @arg[0] if @cpu.flags.get_flag('p') == 1
+			jump @arg[0] if @cpu.flags.p
 		when 'jnp'
-			jump @arg[0] if @cpu.flags.get_flag('p') == 0
+			jump @arg[0] if !@cpu.flags.p
 		when 'jl'
-			jump @arg[0] if @cpu.flags.get_flag('s') != @cpu.flags.get_flag('o')
+			jump @arg[0] if @cpu.flags.s != @cpu.flags.o
 		when 'jnl'
-			jump @arg[0] if @cpu.flags.get_flag('s') == @cpu.flags.get_flag('o')
+			jump @arg[0] if @cpu.flags.s == @cpu.flags.o
 		when 'jle'
-			jump @arg[0] if (@cpu.flags.get_flag('z') == 1) and (@cpu.flags.get_flag('s') != @cpu.flags.get_flag('o'))
+			jump @arg[0] if @cpu.flags.z and (@cpu.flags.s != @cpu.flags.o)
 		when 'jnle'
-			jump @arg[0] if (@cpu.flags.get_flag('z') == 0) and (@cpu.flags.get_flag('s') == @cpu.flags.get_flag('o'))
+			jump @arg[0] if !@cpu.flags.z and (@cpu.flags.s == @cpu.flags.o)
 		when 'cmc' # Complement Carry Flag
-			@cpu.flags.set_flag('c', 1 - @cpu.flags.get_flag('c')) 
+			@cpu.flags.c = !@cpu.flags.c
 		when 'clc', # Clear Carry Flag
-			@cpu.flags.set_flag('c', 0)
+			@cpu.flags.c = false
 		when 'stc', # Set Carry Flag
-			@cpu.flags.set_flag('c', 1)
+			@cpu.flags.c = true
 		when 'cld', # Clear Direction Flag
-			@cpu.flags.set_flag('d', 0)
+			@cpu.flags.d = false
 		when 'std', # Set Direction Flag
-			@cpu.flags.set_flag('d', 1)
+			@cpu.flags.d = true
 		else
 			raise "unsupported function: " + @func
 		end
@@ -269,11 +269,11 @@ class Instruction
 			when 's' # sign flag -- check if the highest bit is set
 				arr = [value].pack("Q<").unpack("C*")
 				arr = Utils.resize(arr, size)
-				@cpu.flags.set_flag('s', arr[arr.length-1] & 0x80 == 0 ? 0 : 1)
+				@cpu.flags.s = arr[arr.length-1] & 0x80 != 0
 			when 'z' # zero flag
-				@cpu.flags.set_flag('z', value == 0 ? 1 : 0)
-			when 'p' # parity flag -- check if the lowest bit is set
-				@cpu.flags.set_flag('p', value & 1 == 0 ? 1 : 0)
+				@cpu.flags.z = value == 0
+			when 'p' # parity flag -- check if the lowest bit is zero
+				@cpu.flags.p = value & 1 == 0
 			when '.', '='
 			else
 				raise "unsupported flag: " + flag

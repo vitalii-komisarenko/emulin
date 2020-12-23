@@ -28,32 +28,29 @@ class Cpu
 end
 
 class FlagsRegister
+	attr_accessor :o, :d, :i, :s, :z, :a, :p, :c
+
 	def initialize
-		@flags = {
-			'o' => 0,
-			'd' => 0,
-			'i' => 0,
-			's' => 0,
-			'z' => 0,
-			'a' => 0,
-			'p' => 0,
-			'c' => 0, 
-		}
-	end
-	
-	def get_flag(flag)
-		@flags[flag]
-	end
-	
-	def set_flag(flag, value)
-		@flags[flag] = value
+		@o = false
+		@d = false
+		@i = false
+		@s = false
+		@z = false
+		@a = false
+		@p = false
+		@c = false
 	end
 	
 	def to_s
 		ret = ""
-		for i in ['o', 'd', 'i', 's', 'z', 'a', 'p', 'c']
-			ret += get_flag(i) == 1 ? i : '-'
-		end
+		ret += @o ? 'o' : '-'
+		ret += @d ? 'd' : '-'
+		ret += @i ? 'i' : '-'
+		ret += @s ? 's' : '-'
+		ret += @z ? 'z' : '-'
+		ret += @a ? 'a' : '-'
+		ret += @p ? 'p' : '-'
+		ret += @c ? 'c' : '-'
 		return ret
 	end
 end
