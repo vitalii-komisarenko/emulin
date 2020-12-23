@@ -146,12 +146,12 @@ class Instruction
 	end
 	
 	def decode_register_from_opcode
-		reg = @opcode - 0xb8 + 8 * @rex.b
+		reg = (@opcode & 8) + 8 * @rex.b
 		@args.push Pointer.new(@cpu.register[reg], 0, @size)
 	end
 	
 	def decode_immediate(size = @size)
-		@args.push stream.read_pointer(@size)
+		@args.push @stream.read_pointer(@size)
 	end
 
 	def decode_immediate_16or32
@@ -188,6 +188,10 @@ class Instruction
 		case @func
 		when "mov"
 			@args[0].write @args[1].read
+		when "pop"
+			@args[0].write @cpu.stack.pop @size
+		when "push"
+			@cpu.stack.push @args[0].read
 		when "syscall"
 			syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
 			@linux.handle_syscall(syscall_number, [
