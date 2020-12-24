@@ -119,6 +119,20 @@ class Instruction
 			else
 				@args.push ConstBuffer.new(@cpu.flags.c ? 1 : 0)
 			end
+		when 0xC6
+			# TODO: verify opcode extension
+			@func = "mov"
+			@size = 1
+			parse_modrm
+			@args.push @modrm.register_or_memory
+			decode_immediate
+		when 0xC7
+			# TODO: verify opcode extension
+			@func = "mov"
+			@size = multi_byte
+			parse_modrm
+			@args.push @modrm.register_or_memory
+			decode_immediate_16or32
 		when 0x0F05
 			@func = "syscall"
 		else
