@@ -18,7 +18,7 @@ class Pointer
 	end
 	
 	def read_signed
-		read_int - 2 ** (8 * @size)
+		read_int - 2 ** (8 * @size - 1)
 	end
 	
 	def write(data)
@@ -48,5 +48,13 @@ class Pointer
 		else
 			raise "bad size: %d" % size
 		end
+	end
+	
+	def highest_bit_set
+		return read_int & (2 ** (8 * @size - 1)) != 0
+	end
+	
+	def highest_bit
+		return highest_bit_set ? 1 : 0
 	end
 end

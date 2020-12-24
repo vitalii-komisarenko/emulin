@@ -112,7 +112,7 @@ class Instruction
 			parse_modrm
 			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][@modrm.opcode_ext]
 			@args = [ @modrm.register_or_memory ]
-			if [0xC0, 0xC1].key? @opcode
+			if [0xC0, 0xC1].include? @opcode
 				decode_immediate 1
 			elsif [0xD0, 0xD1].key? @opcode
 				@args.push ConstBuffer.new(1)
@@ -238,6 +238,22 @@ class Instruction
 
 			update_flags("...sz.p.", value, @args[0].size)
 			# TODO: @cpu.flags.a
+		when "rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"
+			times = @args[1].read_int % (2 ** @size)
+			times.times do
+				case @func
+				when "rol"
+					highest_bit = @args[0].highest_bit
+					@args[0].write_int(@args[0].read_int * 2 + highest_bit)
+					@cpu.flags.c = highest_bit == 1
+				when "ror"
+					value = @args[0].read_int
+					@cpu.flags.c = value & 1 == 1
+					@args[0].write_int(value / 2)
+				else
+					raise "function not implemented: " + @func
+				end
+			end
 		when 'jo'
 			jump @arg[0] if @cpu.flags.o
 		when 'jno'
@@ -281,7 +297,7 @@ class Instruction
 		when 'std', # Set Direction Flag
 			@cpu.flags.d = true
 		else
-			raise "unsupported function: " + @func
+			raise "function not implemented: " + @func
 		end
 	end
 
