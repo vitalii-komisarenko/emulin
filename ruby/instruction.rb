@@ -203,6 +203,10 @@ class Instruction
 		case @func
 		when "mov"
 			@args[0].write @args[1].read
+		when "xchg"
+			tmp = @args[1].read
+			@args[1].write @args[0].read
+			@args[0].write tmp
 		when "pop"
 			@args[0].write @cpu.stack.pop @size
 		when "push"
@@ -381,6 +385,8 @@ class Instruction
 		0x39 => ['cmp', 0, 1],
 		0x3A => ['cmp', 1, 0],
 		0x3B => ['cmp', 0, 0],
+		0x86 => ['xchg', 1, nil],
+		0x87 => ['xchg', 0, nil],
 		0x88 => ['mov', 1, 1],
 		0x89 => ['mov', 0, 1],
 		0x8A => ['mov', 1, 0],
