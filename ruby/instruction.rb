@@ -221,6 +221,23 @@ class Instruction
 			update_flags("...sz.p.", value, @args[0].size)
 			@cpu.flags.o = false
 			@cpu.flags.c = false
+		when 'add', 'adc'
+			highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
+			highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
+			
+			cf = ((@func == 'adc') && @cpu.flags.c) ? 1 : 0
+			value = @args[0].read_int + @args[1].read_int + cf
+			@args[0].write_int value
+
+			@cpu.flags.c = value >= 2 ** (8 * @args[0].size)
+
+			highest_res  = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
+			
+			@cpu.flags.o = (highest_res && !highest_bit1 && !highest_bit2) ||
+			               (!highest_res && highest_bit1 && highest_bit2)
+
+			update_flags("...sz.p.", value, @args[0].size)
+			# TODO: @cpu.flags.a
 		when 'jo'
 			jump @arg[0] if @cpu.flags.o
 		when 'jno'
@@ -271,15 +288,13 @@ class Instruction
 	def update_flags(pattern, value, size)
 		for flag in pattern.split(//)
 			case flag
-			when 's' # sign flag -- check if the highest bit is set
-				arr = [value].pack("Q<").unpack("C*")
-				arr = Utils.resize(arr, size)
-				@cpu.flags.s = arr[arr.length-1] & 0x80 != 0
+			when 's' # sign flag
+				@cpu.flags.s = Utils.highest_bit_set(value, size)
 			when 'z' # zero flag
 				@cpu.flags.z = value == 0
 			when 'p' # parity flag -- check if the lowest bit is zero
 				@cpu.flags.p = value & 1 == 0
-			when '.', '='
+			when '.', '-'
 			else
 				raise "unsupported flag: " + flag
 			end
