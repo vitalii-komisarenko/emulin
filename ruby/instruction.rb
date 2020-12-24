@@ -264,10 +264,13 @@ class Instruction
 					highest_bit = @args[0].highest_bit
 					@args[0].write_int(@args[0].read_int * 2 + highest_bit)
 					@cpu.flags.c = highest_bit == 1
+					@cpu.flags.o = @cpu.flags.c ^ (@args[0].highest_bit == 1)
 				when "ror"
+					orig_highest_bit = @args[0].highest_bit
 					value = @args[0].read_int
 					@cpu.flags.c = value & 1 == 1
 					@args[0].write_int(value / 2)
+					@cpu.flags.o = orig_highest_bit == 1
 				else
 					raise "function not implemented: " + @func
 				end
