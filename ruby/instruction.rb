@@ -1,5 +1,6 @@
 require_relative "stream"
 require_relative "pointer"
+require_relative "const_buffer"
 
 class InstructionPrefix
 	@@prefixes_to_ignore = [
@@ -119,9 +120,9 @@ class Instruction
 			if [0xC0, 0xC1].include? @opcode
 				decode_immediate 1
 			elsif [0xD0, 0xD1].key? @opcode
-				@args.push ConstBuffer.new(1)
+				@args.push ConstBuffer.new(1).ptr
 			else
-				@args.push ConstBuffer.new(@cpu.flags.c ? 1 : 0)
+				@args.push ConstBuffer.new(@cpu.flags.c ? 1 : 0).ptr
 			end
 		when 0xC6
 			# TODO: verify opcode extension
@@ -137,6 +138,13 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.register_or_memory
 			decode_immediate_16or32
+		when 0xE8
+			if @prefix.operand_size_overridden
+				raise "Use of operand-size prefix in 64-bit mode may result in implementation-dependent behaviour"
+			end
+			@func = "call"
+			rel32 = @stream.read_pointer(4).read_signed
+			@args.push ConstBuffer.new(2 ** 64 + @cpu.mem_stream.pos + rel32).ptr
 		when 0x0F05
 			@func = "syscall"
 		else
@@ -218,6 +226,9 @@ class Instruction
 			@args[0].write @cpu.stack.pop @size
 		when "push"
 			@cpu.stack.push @args[0].read
+		when "call"
+			@cpu.stack.push [@cpu.rip].pack("Q<").unpack("C*")
+			@cpu.rip = @args[0].read_int
 		when "syscall"
 			syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
 			@linux.handle_syscall(syscall_number, [

@@ -18,7 +18,7 @@ class Pointer
 	end
 	
 	def read_signed
-		read_int - 2 ** (8 * @size - 1)
+		read.pack("C*").unpack(pack_scheme_signed)[0]
 	end
 	
 	def write(data)
@@ -49,6 +49,21 @@ class Pointer
 			return "L<"
 		when 8
 			return "Q<"
+		else
+			raise "bad size: %d" % size
+		end
+	end
+	
+	def pack_scheme_signed
+		case @size
+		when 1
+			return "c"
+		when 2
+			return "s<"
+		when 4
+			return "l<"
+		when 8
+			return "q<"
 		else
 			raise "bad size: %d" % size
 		end

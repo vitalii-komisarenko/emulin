@@ -24,6 +24,14 @@ class Cpu
 	
 	@@reg_names = ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
 	               "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"]
+
+	def rip
+		return @mem_stream.pos
+	end
+
+	def rip=(new_rip)
+		@mem_stream.pos = new_rip
+	end
 	
 	def exectute_next_instruction
 		instruction = Instruction.new(@mem_stream, self, @linux)
