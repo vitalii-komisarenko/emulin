@@ -258,9 +258,9 @@ class Instruction
 			update_flags("...sz.p.", value, @args[0].size)
 			@cpu.flags.o = false
 			@cpu.flags.c = false
-		when 'and'
+		when 'and', 'test'
 			value = @args[0].read_int & @args[1].read_int
-			@args[0].write_int value
+			@args[0].write_int(value) if @func == 'and'
 			update_flags("...sz.p.", value, @args[0].size)
 			@cpu.flags.o = false
 			@cpu.flags.c = false
@@ -428,6 +428,8 @@ class Instruction
 		0x39 => ['cmp', 0, 1],
 		0x3A => ['cmp', 1, 0],
 		0x3B => ['cmp', 0, 0],
+		0x84 => ['test', 1, nil],
+		0x85 => ['test', 0, nil],
 		0x86 => ['xchg', 1, nil],
 		0x87 => ['xchg', 0, nil],
 		0x88 => ['mov', 1, 1],
