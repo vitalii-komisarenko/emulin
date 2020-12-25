@@ -94,8 +94,7 @@ class Instruction
 		when 0x70..0x7F
 			@func = ['jo', 'jno', 'jb', 'jnb', 'jz', 'jnz', 'jbe', 'jnbe',
 			         'js', 'jns', 'jp', 'jnp', 'jl', 'jnl', 'jle', 'jnle'][@opcode - 0x70]
-			rel8 = @stream.read_pointer(1).read_signed
-			@args.push(@stream.pos + rel8)
+			decode_relative_address 1
 		when 0x80, 0x81, 0x83
 			@size = @opcode == 0x80 ? 1 : multi_byte
 			parse_modrm
@@ -143,8 +142,7 @@ class Instruction
 				raise "Use of operand-size prefix in 64-bit mode may result in implementation-dependent behaviour"
 			end
 			@func = "call"
-			rel32 = @stream.read_pointer(4).read_signed
-			encode_value(2 ** 64 + @cpu.mem_stream.pos + rel32)
+			decode_relative_address 4
 		when 0x0F05
 			@func = "syscall"
 		else
@@ -187,6 +185,11 @@ class Instruction
 	
 	def encode_value(value)
 		@args.push ConstBuffer.new(value).ptr
+	end
+	
+	def decode_relative_address(size)
+		rel = @stream.read_pointer(size).read_signed
+		encode_value(@cpu.rip + rel)
 	end
 
 	def parse_modrm
