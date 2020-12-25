@@ -1,6 +1,8 @@
 class Addressable
 	attr_accessor :name
 
+	@@MAX_ADDR = 2 ** 64
+
 	def initialize()
 		@mem = {}
 		@name = "???"
@@ -9,14 +11,14 @@ class Addressable
 	def read(pos, size)
 		res = []
 		for i in 0..size-1 do
-			res.push(@mem.fetch(pos + i, 0))
+			res.push(@mem.fetch((pos + i) % @@MAX_ADDR, 0))
 		end
 		res
 	end
 	
 	def write(pos, data)
 		for i in 0..data.length-1 do
-			@mem[pos + i] = data[i]
+			@mem[(pos + i) % @@MAX_ADDR] = data[i]
 		end
 	end
 	
