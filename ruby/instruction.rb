@@ -281,6 +281,21 @@ class Instruction
 
 			update_flags("...sz.p.", value, @args[0].size)
 			# TODO: @cpu.flags.a
+		when 'sub', 'sbb', 'cmp'
+			highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
+			highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
+
+			cf = ((@func == 'sbb') && @cpu.flags.c) ? 1 : 0
+			value = @args[0].read_int - @args[1].read_signed - cf
+			@args[0].write_int(value) unless @func == 'cmp'
+			update_flags("...sz.p.", value, @args[0].size)
+
+			@cpu.flags.c = value < 0
+
+			highest_res = value[2 ** (8 * @size - 1)] == 1
+			@cpu.flags.o = (!highest_bit1 && highest_bit2 && highest_res) ||
+			               (highest_bit1 && !highest_bit2 && !highest_res)
+			# TODO: @cpu.flags.a
 		when "rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"
 			times = @args[1].read_int % (2 ** @size)
 			times.times do
