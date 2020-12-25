@@ -391,7 +391,7 @@ class Instruction
 	end
 	
 	def jump(pos)
-		@stream.pos = pos
+		@cpu.rip = pos.read_int
 	end
 	
 	@@reg_regmem_opcodes = {
