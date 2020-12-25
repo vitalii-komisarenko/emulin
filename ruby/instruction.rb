@@ -169,7 +169,7 @@ class Instruction
 	end
 	
 	def decode_immediate(size = @size)
-		@args.push @stream.read_pointer(@size)
+		@args.push @stream.read_pointer(size)
 	end
 
 	def decode_immediate_16or32
