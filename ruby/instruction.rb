@@ -120,9 +120,9 @@ class Instruction
 			if [0xC0, 0xC1].include? @opcode
 				decode_immediate 1
 			elsif [0xD0, 0xD1].key? @opcode
-				@args.push ConstBuffer.new(1).ptr
+				encode_value 1
 			else
-				@args.push ConstBuffer.new(@cpu.flags.c ? 1 : 0).ptr
+				encode_value(@cpu.flags.c ? 1 : 0)
 			end
 		when 0xC6
 			# TODO: verify opcode extension
@@ -144,7 +144,7 @@ class Instruction
 			end
 			@func = "call"
 			rel32 = @stream.read_pointer(4).read_signed
-			@args.push ConstBuffer.new(2 ** 64 + @cpu.mem_stream.pos + rel32).ptr
+			encode_value(2 ** 64 + @cpu.mem_stream.pos + rel32)
 		when 0x0F05
 			@func = "syscall"
 		else
@@ -183,6 +183,10 @@ class Instruction
 	def decode_immediate_16or32
 		size = @size == 8 ? 4 : @size
 		decode_immediate(size)
+	end
+	
+	def encode_value(value)
+		@args.push ConstBuffer.new(value).ptr
 	end
 
 	def parse_modrm
