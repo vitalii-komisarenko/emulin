@@ -316,37 +316,37 @@ class Instruction
 				end
 			end
 		when 'jo'
-			jump @arg[0] if @cpu.flags.o
+			jump @args[0] if @cpu.flags.o
 		when 'jno'
-			jump @arg[0] if !@cpu.flags.o
+			jump @args[0] if !@cpu.flags.o
 		when 'jb'
-			jump @arg[0] if @cpu.flags.c
+			jump @args[0] if @cpu.flags.c
 		when 'jnb'
-			jump @arg[0] if !@cpu.flags.c
+			jump @args[0] if !@cpu.flags.c
 		when 'jz'
-			jump @arg[0] if @cpu.flags.z
+			jump @args[0] if @cpu.flags.z
 		when 'jnz'
-			jump @arg[0] if !@cpu.flags.z
+			jump @args[0] if !@cpu.flags.z
 		when 'jbe'
-			jump @arg[0] if @cpu.flags.c and @cpu.flags.z
+			jump @args[0] if @cpu.flags.c and @cpu.flags.z
 		when 'jnbe'
-			jump @arg[0] if !@cpu.flags.c and !@cpu.flags.z
+			jump @args[0] if !@cpu.flags.c and !@cpu.flags.z
 		when 'js'
-			jump @arg[0] if @cpu.flags.s
+			jump @args[0] if @cpu.flags.s
 		when 'jns'
-			jump @arg[0] if !@cpu.flags.s
+			jump @args[0] if !@cpu.flags.s
 		when 'jp'
-			jump @arg[0] if @cpu.flags.p
+			jump @args[0] if @cpu.flags.p
 		when 'jnp'
-			jump @arg[0] if !@cpu.flags.p
+			jump @args[0] if !@cpu.flags.p
 		when 'jl'
-			jump @arg[0] if @cpu.flags.s != @cpu.flags.o
+			jump @args[0] if @cpu.flags.s != @cpu.flags.o
 		when 'jnl'
-			jump @arg[0] if @cpu.flags.s == @cpu.flags.o
+			jump @args[0] if @cpu.flags.s == @cpu.flags.o
 		when 'jle'
-			jump @arg[0] if @cpu.flags.z and (@cpu.flags.s != @cpu.flags.o)
+			jump @args[0] if @cpu.flags.z and (@cpu.flags.s != @cpu.flags.o)
 		when 'jnle'
-			jump @arg[0] if !@cpu.flags.z and (@cpu.flags.s == @cpu.flags.o)
+			jump @args[0] if !@cpu.flags.z and (@cpu.flags.s == @cpu.flags.o)
 		when 'cmc' # Complement Carry Flag
 			@cpu.flags.c = !@cpu.flags.c
 		when 'clc', # Clear Carry Flag
