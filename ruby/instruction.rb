@@ -251,7 +251,7 @@ class Instruction
 			highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
 			
 			cf = ((@func == 'adc') && @cpu.flags.c) ? 1 : 0
-			value = @args[0].read_int + @args[1].read_int + cf
+			value = @args[0].read_int + @args[1].read_signed + cf + (2 ** (8 * @size))
 			@args[0].write_int value
 
 			@cpu.flags.c = value >= 2 ** (8 * @args[0].size)
@@ -438,7 +438,7 @@ class ModRM_Parser
 	end
 	
 	def register_or_memory
-		regmem = ((@modrm & 0x38) >> 3) + 8 * @rex.b
+		regmem = (@modrm & 0x07) + 8 * @rex.b
 		if mode == 0x03
 			return Pointer.new(@cpu.register[regmem], 0, @operand_size)		
 		else

@@ -17,10 +17,13 @@ class Cpu
 		for i in 1..16
 			reg = Register.new
 			reg.write(0, [i, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
-			reg.name = "reg #%d" % (i - 1)
+			reg.name = "reg #%d %s" % [(i - 1), @@reg_names[i-1]]
 			@register.push reg
 		end
 	end
+	
+	@@reg_names = ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
+	               "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"]
 	
 	def exectute_next_instruction
 		instruction = Instruction.new(@mem_stream, self, @linux)
