@@ -100,8 +100,12 @@ class Instruction
 			parse_modrm
 			@func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][@modrm.opcode_ext]
 			@args = [ @modrm.register_or_memory ]
-			
-			decode_immediate_16or32
+
+			if @opcode == 0x81
+				decode_immediate_16or32
+			else
+				decode_immediate 1
+			end
 		when 0xb8..0xbf
 			@func = "mov"
 			@size = multi_byte
@@ -200,6 +204,9 @@ class Instruction
 	def execute
 		puts "opcode: %x" % @opcode
 		puts @func
+		for arg in @args
+			puts "arg = %s pos=%x size=%d" % [arg.mem.name, arg.pos, arg.size]
+		end
 		case @func
 		when "mov"
 			@args[0].write @args[1].read

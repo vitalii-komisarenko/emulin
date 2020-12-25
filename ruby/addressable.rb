@@ -1,6 +1,9 @@
 class Addressable
+	attr_accessor :name
+
 	def initialize()
 		@mem = {}
+		@name = "???"
 	end
 	
 	def read(pos, size)

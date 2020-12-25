@@ -23,6 +23,8 @@ cpu.linux = linux
 
 begin
 	while !cpu.stopped
+		puts "====="
+		puts "pos = 0x%x" % cpu.mem_stream.pos
 		cpu.exectute_next_instruction
 	end
 rescue

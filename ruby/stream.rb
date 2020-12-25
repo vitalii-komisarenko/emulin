@@ -11,7 +11,6 @@ class Stream
 	end
 	
 	def read()
-		puts "pos = 0x%x" % @pos
 		ret = @mem.read(@pos, 1)[0]
 		@pos += 1
 		return ret
