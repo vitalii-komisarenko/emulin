@@ -205,7 +205,7 @@ class Instruction
 		puts "opcode: %x" % @opcode
 		puts @func
 		for arg in @args
-			puts "arg = %s pos=%x size=%d" % [arg.mem.name, arg.pos, arg.size]
+			puts "arg = %s pos=%x size=%d ==> %s" % [arg.mem.name, arg.pos, arg.size, arg.debug_value]
 		end
 		case @func
 		when "mov"

@@ -35,6 +35,10 @@ class Pointer
 		write([value].pack(pack_scheme).unpack("C*"))
 	end
 	
+	def debug_value
+		read.reverse.map{|x| "%02X" % x}.join(":")
+	end
+	
 	def pack_scheme
 		case @size
 		when 1
