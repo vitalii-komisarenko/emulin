@@ -95,6 +95,13 @@ class Instruction
 			@func = "pop"
 			@size = multi_byte
 			decode_register_from_opcode
+		when 0x63
+			@func = "movsxd"
+			@size = multi_byte
+			parse_modrm
+			@args.push @modrm.register
+			@modrm.operand_size = [4, @modrm.operand_size].min
+			@args.push @modrm.register_or_memory
 		when 0x70..0x7F
 			@func = ['jo', 'jno', 'jb', 'jnb', 'jz', 'jnz', 'jbe', 'jnbe',
 			         'js', 'jns', 'jp', 'jnp', 'jl', 'jnl', 'jle', 'jnle'][@opcode - 0x70]
@@ -232,6 +239,8 @@ class Instruction
 		case @func
 		when "mov"
 			@args[0].write @args[1].read
+		when "movsxd"
+			@args[0].write_int @args[1].read_signed
 		when "xchg"
 			tmp = @args[1].read
 			@args[1].write @args[0].read
@@ -460,6 +469,8 @@ class Instruction
 end
 
 class ModRM_Parser
+	attr_accessor :operand_size
+
 	def initialize(stream, rex, cpu, operand_size, address_size)
 		@rex = rex
 		@stream = stream
