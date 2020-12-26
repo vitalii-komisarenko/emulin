@@ -480,7 +480,8 @@ class ModRM_Parser
 			if [0x4, 0xC].include? regmem
 				return sib
 			elsif [0x5, 0xD].include? regmem
-				raise "RIP/EIP addressing not implemented"
+				rel = @stream.read_pointer(4).read_signed
+				return Pointer.new(@stream.mem, @cpu.rip + rel, @operand_size)
 			else
 				addr = @cpu.register[regmem].read_int(0, @address_size)
 				case mode
