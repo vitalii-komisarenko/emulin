@@ -14,8 +14,6 @@ class InstructionPrefix
 	]
 
 	@@prefixes_not_implemented = [
-		0xF2, # REPNE/REPNZ prefix
-		0xF3, # REP or REPE/REPZ prefix 
 		0x64, # FS segment override
 		0x65, # GS segment override
 	]
@@ -25,6 +23,8 @@ class InstructionPrefix
 	def initialize(stream)
 		@operand_size_overridden = false
 		@address_size_overridden = false
+		@repe = false
+		@repne = false
 	
 		loop do
 			prefix = stream.read
@@ -35,9 +35,13 @@ class InstructionPrefix
 			when *@@prefixes_not_implemented
 				raise "prefix %x not implemented" % prefix
 			when 0x66 # Operand-size override prefix
-				operand_size_overridden = true
+				@operand_size_overridden = true
 			when 0x67 # Address-size override prefix
-				address_size_overridden = true
+				@address_size_overridden = true
+			when 0xF2 # REPNE/REPNZ prefix
+				@repne = true
+			when 0xF3 # REP or REPE/REPZ prefix
+				@repe = true
 			else
 				# all the prefixes have been read
 				stream.back
@@ -123,6 +127,9 @@ class Instruction
 			else
 				encode_value(@cpu.flags.c ? 1 : 0)
 			end
+		when 0xC3
+			@func = "retn"
+			encode_value 0
 		when 0xC6
 			# TODO: verify opcode extension
 			@func = "mov"
@@ -236,6 +243,9 @@ class Instruction
 		when "call"
 			@cpu.stack.push [@cpu.rip].pack("Q<").unpack("C*")
 			@cpu.rip = @args[0].read_int
+		when "retn"
+			@cpu.rip = @cpu.stack.pop(8).pack("C*").unpack("Q<")[0]
+			@cpu.stack.pop(@args[0].read_int)
 		when "syscall"
 			syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
 			@linux.handle_syscall(syscall_number, [
