@@ -269,12 +269,12 @@ class Instruction
 			highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
 			
 			cf = ((@func == 'adc') && @cpu.flags.c) ? 1 : 0
-			value = @args[0].read_int + @args[1].read_signed + cf + (2 ** (8 * @size))
+			value = @args[0].read_int + @args[1].read_signed + cf
 			@args[0].write_int value
 
 			@cpu.flags.c = value >= 2 ** (8 * @args[0].size)
 
-			highest_res  = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
+			highest_res  = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
 			
 			@cpu.flags.o = (highest_res && !highest_bit1 && !highest_bit2) ||
 			               (!highest_res && highest_bit1 && highest_bit2)
