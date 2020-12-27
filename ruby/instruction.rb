@@ -161,17 +161,17 @@ class Instruction
 			@func = "retn"
 			encode_value 0
 		when 0xC6
-			# TODO: verify opcode extension
 			@func = "mov"
 			@size = 1
 			parse_modrm
+			unspecified_opcode_extension unless @modrm.opcode_ext == 0
 			@args.push @modrm.register_or_memory
 			decode_immediate
 		when 0xC7
-			# TODO: verify opcode extension
 			@func = "mov"
 			@size = multi_byte
 			parse_modrm
+			unspecified_opcode_extension unless @modrm.opcode_ext == 0
 			@args.push @modrm.register_or_memory
 			decode_immediate_16or32
 		when 0xE8
@@ -264,6 +264,10 @@ class Instruction
 	def parse_modrm
 		address_size = @prefix.address_size_overridden ? 4 : 8
 		@modrm = ModRM_Parser.new(@stream, @rex, @cpu, @size, address_size, segment_offset)
+	end
+
+	def unspecified_opcode_extension
+		raise "Unspecified opcode extension %d for opcode 0x%X" % [@modrm.opcode_ext, @opcode]
 	end
 
 	def read_opcode(stream)
