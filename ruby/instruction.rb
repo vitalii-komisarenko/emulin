@@ -218,7 +218,7 @@ class Instruction
 	end
 	
 	def decode_register_from_opcode
-		reg = (@opcode & 8) + 8 * @rex.b
+		reg = (@opcode % 8) + 8 * @rex.b
 		@args.push Pointer.new(@cpu.register[reg], 0, @size)
 	end
 	
