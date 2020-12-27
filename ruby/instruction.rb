@@ -83,6 +83,7 @@ class Instruction
 		@size = nil # operand size (in bytes)
 		@args = []  # operation arguments. If operation result is to be stored
 		            # the destination is encoded in the first argument
+		@cond = nil # condition to check for conditional operations (e.g. 'jne', 'cmovo')
 		
 		case @opcode
 		when 0x50..0x57
@@ -271,6 +272,47 @@ class Instruction
 		end
 	end
 	
+	def condition_is_met
+		case @cond
+		when nil
+			return true
+		when 0
+			return @cpu.flags.o
+		when 1
+			return !@cpu.flags.o
+		when 2
+			return @cpu.flags.c
+		when 3
+			return !@cpu.flags.c
+		when 4
+			return @cpu.flags.z
+		when 5
+			return !@cpu.flags.z
+		when 6
+			return @cpu.flags.c && @cpu.flags.z
+		when 7
+			return !@cpu.flags.c && !@cpu.flags.z
+		when 8
+			return @cpu.flags.s
+		when 9
+			return !@cpu.flags.s
+		when 10
+			return @cpu.flags.p
+		when 11
+			return !@cpu.flags.p
+		when 12
+			return @cpu.flags.s != @cpu.flags.o
+		when 13
+			return @cpu.flags.s == @cpu.flags.o
+		when 14
+			return @cpu.flags.z && (@cpu.flags.s != @cpu.flags.o)
+		when 15
+			return !@cpu.flags.z && (@cpu.flags.s == @cpu.flags.o)
+		else
+			raise "unexpected value of @cond: %d" % @cond
+		end
+	end
+	
 	def segment_offset
 		return @cpu.fs * 16 if @prefix.segment == "FS"
 		return @cpu.gs * 16 if @prefix.segment == "FS"
@@ -281,9 +323,13 @@ class Instruction
 	def execute
 		puts "opcode: %x" % @opcode
 		puts @func
+		puts "condition: %s" % (@cond.nil? ? "none" : "%d" % @cond)
 		for arg in @args
 			puts "arg = %s pos=%x size=%d ==> %s" % [arg.mem.name, arg.pos, arg.size, arg.debug_value]
 		end
+
+		return unless condition_is_met
+
 		case @func
 		when "lea"
 			raise "LEA & register-direct addressing mode" if @modrm.mode == 0x03
