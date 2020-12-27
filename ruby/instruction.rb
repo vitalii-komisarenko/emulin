@@ -188,6 +188,13 @@ class Instruction
 			decode_relative_address 4
 		when 0x0F05
 			@func = "syscall"
+		when 0x0F40..0x0F4F
+			@func = "mov"
+			@cond = @opcode % 16
+			@size = multi_byte
+			parse_modrm
+			@args.push @modrm.register
+			@args.push @modrm.register_or_memory
 		else
 			if @@reg_regmem_opcodes.key? @opcode
 				arr = @@reg_regmem_opcodes[@opcode]
