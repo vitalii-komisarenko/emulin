@@ -129,6 +129,11 @@ class Instruction
 			@size = multi_byte
 			encode_accumulator
 			decode_register_from_opcode
+		when 0xb0..0xb7
+			@func = "mov"
+			@size = 1
+			decode_register_from_opcode
+			decode_immediate
 		when 0xb8..0xbf
 			@func = "mov"
 			@size = multi_byte
