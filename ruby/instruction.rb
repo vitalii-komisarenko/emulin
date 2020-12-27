@@ -502,7 +502,7 @@ class ModRM_Parser
 				return sib
 			elsif [0x5, 0xD].include? regmem
 				rel = @stream.read_pointer(4).read_signed
-				return Pointer.new(@stream.mem, @cpu.rip + rel, @operand_size)
+				return memory_at(@cpu.rip + rel)
 			else
 				addr = @cpu.register[regmem].read_int(0, @address_size)
 				case mode
