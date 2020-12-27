@@ -117,6 +117,8 @@ class Instruction
 			else
 				decode_immediate 1
 			end
+		when 0x90
+			@func = @prefix.repe ? "pause" : "nop"
 		when 0xb8..0xbf
 			@func = "mov"
 			@size = multi_byte
@@ -379,6 +381,8 @@ class Instruction
 			@cpu.flags.d = false
 		when 'std', # Set Direction Flag
 			@cpu.flags.d = true
+		when 'nop', 'pause'
+			# do nothing
 		else
 			raise "function not implemented: " + @func
 		end
