@@ -169,6 +169,12 @@ class Instruction
 			end
 			@func = "call"
 			decode_relative_address 4
+		when 0xE9
+			if @prefix.operand_size_overridden
+				raise "Use of operand-size prefix in 64-bit mode may result in implementation-dependent behaviour"
+			end
+			@func = "jmp"
+			decode_relative_address 4
 		when 0x0F05
 			@func = "syscall"
 		else
@@ -362,6 +368,8 @@ class Instruction
 					raise "function not implemented: " + @func
 				end
 			end
+		when 'jmp'
+			jump @args[0]
 		when 'jo'
 			jump @args[0] if @cpu.flags.o
 		when 'jno'
