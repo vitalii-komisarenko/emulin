@@ -119,6 +119,11 @@ class Instruction
 			end
 		when 0x90
 			@func = @prefix.repe ? "pause" : "nop"
+		when 0x91..0x97
+			@func = "xchg"
+			@size = multi_byte
+			encode_accumulator
+			decode_register_from_opcode
 		when 0xb8..0xbf
 			@func = "mov"
 			@size = multi_byte
@@ -183,6 +188,10 @@ class Instruction
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
 		end
+	end
+	
+	def encode_accumulator
+		@args.push Pointer.new(@cpu.register[0], 0, @size)
 	end
 	
 	def decode_register_from_opcode
