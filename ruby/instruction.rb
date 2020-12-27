@@ -109,12 +109,12 @@ class Instruction
 			@modrm.operand_size = @opcode == 0x0FB6 ? 1 : 2
 			@args.push @modrm.register_or_memory
 		when 0x70..0x7F
-			@func = ['jo', 'jno', 'jb', 'jnb', 'jz', 'jnz', 'jbe', 'jnbe',
-			         'js', 'jns', 'jp', 'jnp', 'jl', 'jnl', 'jle', 'jnle'][@opcode - 0x70]
+			@func = "jmp"
+			@cond = @opcode % 16
 			decode_relative_address 1
 		when 0x0F80..0x0F8F
-			@func = ['jo', 'jno', 'jb', 'jnb', 'jz', 'jnz', 'jbe', 'jnbe',
-			         'js', 'jns', 'jp', 'jnp', 'jl', 'jnl', 'jle', 'jnle'][@opcode - 0x0F80]
+			@func = "jmp"
+			@cond = @opcode % 16
 			# TODO: are 16-bit offset specified?
 			decode_relative_address 4
 		when 0x80, 0x81, 0x83
@@ -435,38 +435,6 @@ class Instruction
 			end
 		when 'jmp'
 			jump @args[0]
-		when 'jo'
-			jump @args[0] if @cpu.flags.o
-		when 'jno'
-			jump @args[0] if !@cpu.flags.o
-		when 'jb'
-			jump @args[0] if @cpu.flags.c
-		when 'jnb'
-			jump @args[0] if !@cpu.flags.c
-		when 'jz'
-			jump @args[0] if @cpu.flags.z
-		when 'jnz'
-			jump @args[0] if !@cpu.flags.z
-		when 'jbe'
-			jump @args[0] if @cpu.flags.c and @cpu.flags.z
-		when 'jnbe'
-			jump @args[0] if !@cpu.flags.c and !@cpu.flags.z
-		when 'js'
-			jump @args[0] if @cpu.flags.s
-		when 'jns'
-			jump @args[0] if !@cpu.flags.s
-		when 'jp'
-			jump @args[0] if @cpu.flags.p
-		when 'jnp'
-			jump @args[0] if !@cpu.flags.p
-		when 'jl'
-			jump @args[0] if @cpu.flags.s != @cpu.flags.o
-		when 'jnl'
-			jump @args[0] if @cpu.flags.s == @cpu.flags.o
-		when 'jle'
-			jump @args[0] if @cpu.flags.z and (@cpu.flags.s != @cpu.flags.o)
-		when 'jnle'
-			jump @args[0] if !@cpu.flags.z and (@cpu.flags.s == @cpu.flags.o)
 		when 'cmc' # Complement Carry Flag
 			@cpu.flags.c = !@cpu.flags.c
 		when 'clc', # Clear Carry Flag
