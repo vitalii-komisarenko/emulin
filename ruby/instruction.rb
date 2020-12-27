@@ -566,7 +566,7 @@ class ModRM_Parser
 	
 	def memory_at(pos)
 		p "memory_at %x" % pos
-		return Pointer.new(@stream.mem, pos % @address_size, @operand_size) 
+		return Pointer.new(@stream.mem, pos % (2 ** (8 * @address_size)), @operand_size) 
 	end
 	
 	def disp32
