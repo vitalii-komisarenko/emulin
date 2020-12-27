@@ -237,6 +237,9 @@ class Instruction
 			puts "arg = %s pos=%x size=%d ==> %s" % [arg.mem.name, arg.pos, arg.size, arg.debug_value]
 		end
 		case @func
+		when "lea"
+			raise "LEA & register-direct addressing mode" if @modrm.mode == 0x03
+			@args[0].write_int @args[1].pos
 		when "mov"
 			@args[0].write @args[1].read
 		when "movsxd"
@@ -455,6 +458,7 @@ class Instruction
 		0x89 => ['mov', 0, 1],
 		0x8A => ['mov', 1, 0],
 		0x8B => ['mov', 0, 0],
+		0x8D => ['lea', 0, 0],
 	}
 	
 	@@no_args_opcodes = {
