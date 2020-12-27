@@ -6,7 +6,7 @@ require_relative "stack"
 class Cpu
 	attr_reader :register
 	attr_writer :linux
-	attr_accessor :stopped, :flags, :stack, :mem_stream
+	attr_accessor :stopped, :flags, :stack, :mem_stream, :fs, :gs
 	
 	def initialize(mem, entry_point, stack_bottom)
 		@register = []
@@ -14,6 +14,8 @@ class Cpu
 		@stopped = false
 		@flags = FlagsRegister.new
 		@stack = Stack.new(mem, stack_bottom)
+		@fs = 0
+		@gs = 0
 		for i in 1..16
 			reg = Register.new
 			reg.write(0, [i, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])

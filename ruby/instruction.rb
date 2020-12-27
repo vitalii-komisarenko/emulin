@@ -13,18 +13,14 @@ class InstructionPrefix
 		0x3E, # Branch taken 
 	]
 
-	@@prefixes_not_implemented = [
-		0x64, # FS segment override
-		0x65, # GS segment override
-	]
-
-	attr_reader :operand_size_overridden, :address_size_overridden
+	attr_reader :operand_size_overridden, :address_size_overridden, :segment
 	
 	def initialize(stream)
 		@operand_size_overridden = false
 		@address_size_overridden = false
 		@repe = false
 		@repne = false
+		@segment = "none"
 	
 		loop do
 			prefix = stream.read
@@ -32,8 +28,10 @@ class InstructionPrefix
 			case prefix
 			when *@@prefixes_to_ignore
 				"ignore"
-			when *@@prefixes_not_implemented
-				raise "prefix %x not implemented" % prefix
+			when 0x64 # FS segment override
+				@segment = "FS"
+			when 0x65 # GS segment override
+				@segment = "GS"
 			when 0x66 # Operand-size override prefix
 				@operand_size_overridden = true
 			when 0x67 # Address-size override prefix
@@ -244,7 +242,7 @@ class Instruction
 
 	def parse_modrm
 		address_size = @prefix.address_size_overridden ? 4 : 8
-		@modrm = ModRM_Parser.new(@stream, @rex, @cpu, @size, address_size)
+		@modrm = ModRM_Parser.new(@stream, @rex, @cpu, @size, address_size, segment_offset)
 	end
 
 	def read_opcode(stream)
@@ -264,6 +262,13 @@ class Instruction
 		else
 			return byte1
 		end
+	end
+	
+	def segment_offset
+		return @cpu.fs * 16 if @prefix.segment == "FS"
+		return @cpu.gs * 16 if @prefix.segment == "FS"
+		return 0 if @prefix.segment == "none"
+		raise "unexpected name of the segment: " + @prefix.segment
 	end
 	
 	def execute
@@ -537,13 +542,14 @@ end
 class ModRM_Parser
 	attr_accessor :operand_size
 
-	def initialize(stream, rex, cpu, operand_size, address_size)
+	def initialize(stream, rex, cpu, operand_size, address_size, segment_offset)
 		@rex = rex
 		@stream = stream
 		@modrm = stream.read
 		@cpu = cpu
 		@operand_size = operand_size
 		@address_size = address_size
+		@segment_offset = segment_offset
 	end
 	
 	def mode
@@ -584,7 +590,9 @@ class ModRM_Parser
 	
 	def memory_at(pos)
 		p "memory_at %x" % pos
-		return Pointer.new(@stream.mem, pos % (2 ** (8 * @address_size)), @operand_size) 
+		# TODO: shall @segment_offset be used in all cases
+		# TODO: how do segment overrides work with RIP addressing
+		return Pointer.new(@stream.mem, (@segment_offset + pos) % (2 ** (8 * @address_size)), @operand_size) 
 	end
 	
 	def disp32

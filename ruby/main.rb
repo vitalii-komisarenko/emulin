@@ -21,6 +21,11 @@ linux = Linux.new(cpu, mem)
 
 cpu.linux = linux
 
+# set gs and fs to non-zero values
+# TODO: initialize to meaningful values
+cpu.gs = 0xeeeeeeeeeeee
+cpu.fs = 0xf0f0f0f0f0f0
+
 begin
 	while !cpu.stopped
 		puts "====="
