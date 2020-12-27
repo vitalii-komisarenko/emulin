@@ -100,6 +100,13 @@ class Instruction
 			@args.push @modrm.register
 			@modrm.operand_size = [4, @modrm.operand_size].min
 			@args.push @modrm.register_or_memory
+		when 0x0FB6..0x0FB7
+			@func = "movzx"
+			@size = multi_byte
+			parse_modrm
+			@args.push @modrm.register
+			@modrm.operand_size = @opcode == 0x0FB6 ? 1 : 2
+			@args.push @modrm.register_or_memory
 		when 0x70..0x7F
 			@func = ['jo', 'jno', 'jb', 'jnb', 'jz', 'jnz', 'jbe', 'jnbe',
 			         'js', 'jns', 'jp', 'jnp', 'jl', 'jnl', 'jle', 'jnle'][@opcode - 0x70]
@@ -285,6 +292,8 @@ class Instruction
 			@args[0].write @args[1].read
 		when "movsxd"
 			@args[0].write_int @args[1].read_signed
+		when "movzx"
+			@args[0].write_int @args[1].read_int
 		when "xchg"
 			tmp = @args[1].read
 			@args[1].write @args[0].read
