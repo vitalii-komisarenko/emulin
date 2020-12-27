@@ -195,6 +195,12 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.register
 			@args.push @modrm.register_or_memory
+		when 0x0F90..0x0F9F
+			@func = "set"
+			@size = 1
+			parse_modrm
+			@args.push @modrm.register_or_memory
+			encode_value(condition_is_met(@opcode % 16) ? 1 : 0)
 		else
 			if @@reg_regmem_opcodes.key? @opcode
 				arr = @@reg_regmem_opcodes[@opcode]
@@ -279,8 +285,8 @@ class Instruction
 		end
 	end
 	
-	def condition_is_met
-		case @cond
+	def condition_is_met(cond = @cond)
+		case cond
 		when nil
 			return true
 		when 0
@@ -316,7 +322,7 @@ class Instruction
 		when 15
 			return !@cpu.flags.z && (@cpu.flags.s == @cpu.flags.o)
 		else
-			raise "unexpected value of @cond: %d" % @cond
+			raise "unexpected value of `cond`: %d" % cond
 		end
 	end
 	
@@ -341,7 +347,7 @@ class Instruction
 		when "lea"
 			raise "LEA & register-direct addressing mode" if @modrm.mode == 0x03
 			@args[0].write_int @args[1].pos
-		when "mov"
+		when "mov", "set"
 			@args[0].write @args[1].read
 		when "movsxd"
 			@args[0].write_int @args[1].read_signed
