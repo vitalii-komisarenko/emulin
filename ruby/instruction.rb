@@ -572,7 +572,7 @@ class ModRM_Parser
 		else
 			if [0x4, 0xC].include? regmem
 				return sib
-			elsif [0x5, 0xD].include? regmem
+			elsif ([0x5, 0xD].include? regmem) && (mode == 0)
 				rel = @stream.read_pointer(4).read_signed
 				return memory_at(@cpu.rip + rel)
 			else
