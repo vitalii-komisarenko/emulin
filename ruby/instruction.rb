@@ -182,6 +182,15 @@ class Instruction
 				if direction_bit
 					@args[0], @args[1] = @args[1], @args[0]
 				end
+			elsif @@acc_imm_opcodes.key? @opcode
+				arr = @@acc_imm_opcodes[@opcode]
+
+				@func = arr[0]
+				is8bit = arr[1] == 1
+				@size = is8bit ? 1 : multi_byte
+
+				encode_accumulator
+				decode_immediate_16or32
 			elsif @@no_args_opcodes.key? @opcode
 				@func = @@reg_regmem_opcodes[@opcode]
 			else
@@ -430,7 +439,7 @@ class Instruction
 	end
 	
 	@@reg_regmem_opcodes = {
-		# format: opcode: [operation, is8bit, direction_bit]
+		# format: opcode => [operation, is8bit, direction_bit]
 		0x00 => ['add', 1, 1],
 		0x01 => ['add', 0, 1],
 		0x02 => ['add', 1, 0],
@@ -472,6 +481,28 @@ class Instruction
 		0x8A => ['mov', 1, 0],
 		0x8B => ['mov', 0, 0],
 		0x8D => ['lea', 0, 0],
+	}
+	
+	@@acc_imm_opcodes = {
+		# format: opcode => [operation, is8bit]
+		0x04 => ['add', 1],
+		0x05 => ['add', 0],
+		0x0C => ['or', 1],
+		0x0D => ['or', 0],
+		0x14 => ['adc', 1],
+		0x15 => ['adc', 0],
+		0x1C => ['sbb', 1],
+		0x1D => ['sbb', 0],
+		0x24 => ['and', 1],
+		0x25 => ['and', 0],
+		0x2C => ['sub', 1],
+		0x2D => ['sub', 0],
+		0x34 => ['xor', 1],
+		0x35 => ['xor', 0],
+		0x3C => ['cmp', 1],
+		0x3D => ['cmp', 0],
+		0xA8 => ['test', 1],
+		0xA9 => ['test', 0],
 	}
 	
 	@@no_args_opcodes = {
