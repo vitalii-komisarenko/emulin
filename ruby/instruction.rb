@@ -195,6 +195,9 @@ class Instruction
 			end
 			@func = "jmp"
 			decode_relative_address 4
+		when 0xEB
+			@func = "jmp"
+			decode_relative_address 1
 		when 0xFF
 			parse_modrm
 			case @modrm.opcode_ext
