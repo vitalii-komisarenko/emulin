@@ -195,6 +195,19 @@ class Instruction
 			end
 			@func = "jmp"
 			decode_relative_address 4
+		when 0xFF
+			parse_modrm
+			case @modrm.opcode_ext
+			when 4
+				@func = "jmp"
+				# TODO: unspecified behaviour for 16 and 32-bit operands
+				@size = multi_byte
+				@modrm.operand_size = multi_byte
+				ptr = @modrm.register_or_memory
+				encode_value ptr.read_int
+			else
+				raise "opcode extension not implemented for opcode 0xFF: %d" % @modrm.opcode_ext
+			end
 		when 0x0F05
 			@func = "syscall"
 		when 0x0F40..0x0F4F
