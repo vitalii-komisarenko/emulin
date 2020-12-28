@@ -104,6 +104,10 @@ class Instruction
 			@args.push @modrm.register
 			@modrm.operand_size = [4, @modrm.operand_size].min
 			@args.push @modrm.register_or_memory
+		when 0x68, 0x6A
+			@func = "push"
+			@size = @opcode == 0x68 ? multi_byte : 1
+			decode_immediate_16or32
 		when 0x0FB6..0x0FB7
 			@func = "movzx"
 			@size = multi_byte
