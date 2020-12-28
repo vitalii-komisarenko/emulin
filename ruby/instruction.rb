@@ -13,7 +13,8 @@ class InstructionPrefix
 		0x3E, # Branch taken 
 	]
 
-	attr_reader :operand_size_overridden, :address_size_overridden, :segment
+	attr_reader :operand_size_overridden, :address_size_overridden, :segment,
+	            :repe, :repne
 	
 	def initialize(stream)
 		@operand_size_overridden = false
@@ -85,6 +86,8 @@ class Instruction
 		            # the destination is encoded in the first argument
 		@cond = nil # condition to check for conditional operations (e.g. 'jne', 'cmovo')
 		
+		@address_size = @prefix.address_size_overridden ? 4 : 8
+		
 		case @opcode
 		when 0x50..0x57
 			@func = "push"
@@ -135,6 +138,12 @@ class Instruction
 			@size = multi_byte
 			encode_accumulator
 			decode_register_from_opcode
+		when 0xA6
+			@func = "cmps"
+			@size = 1
+		when 0xA7
+			@func = "cmps"
+			@size = multi_byte
 		when 0xb0..0xb7
 			@func = "mov"
 			@size = 1
@@ -348,6 +357,8 @@ class Instruction
 		return unless condition_is_met
 
 		case @func
+		when "ins", "movs", "outs", "lods", "stos", "cmps", "scas"
+			return execute_string_instruction
 		when "lea"
 			raise "LEA & register-direct addressing mode" if @modrm.mode == 0x03
 			@args[0].write_int @args[1].pos
@@ -466,6 +477,68 @@ class Instruction
 			# do nothing
 		else
 			raise "function not implemented: " + @func
+		end
+	end
+	
+	def execute_string_instruction
+		string_func = @func
+		
+		loop_mode = "none"
+		if @prefix.repe
+			if ["cmps", "scas"].include? string_func
+				loop_mode = "repe"
+			else
+				loop_mode = "rep"
+			end
+		elsif @prefix.repne
+			loop_mode = "repne"
+		end
+
+		loop do
+			rcx = Pointer.new(@cpu.register[1], 0, @size)
+			rsi = Pointer.new(@cpu.register[6], 0, @address_size)
+			rdi = Pointer.new(@cpu.register[7], 0, @address_size)
+		
+			case string_func
+			when "cmps"
+				@func = "cmp"
+				address_size = @prefix
+				@args = [
+					Pointer.new(@stream.mem, rsi.read_int, @size),
+					Pointer.new(@stream.mem, rdi.read_int, @size),
+				]
+				execute
+			else
+				raise "string function not implemented: " + string_func
+			end
+			
+			if @cpu.flags.d
+				rsi.write_int(rsi.read_int - @size)
+				rdi.write_int(rdi.read_int - @size)
+			else
+				rsi.write_int(rsi.read_int + @size)
+				rdi.write_int(rdi.read_int + @size)
+			end
+			
+			# TODO: is RCX changed if there is no rep* prefix?
+			unless loop_mode == "none"
+				rcx.write_int(rcx.read_int - 1)
+			end
+			
+			rcx_empty = rcx.read_int == 0
+			
+			case loop_mode
+			when "none"
+				break
+			when "rep"
+				break if rcx_empty
+			when "repe"
+				break if rcx_empty || !@cpu.flags.z
+			when "repne"
+				break if rcx_empty || !@cpu.flags.z
+			else
+				raise "bad loop_mode: %s" % loop_mode
+			end
 		end
 	end
 
