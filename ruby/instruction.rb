@@ -213,6 +213,10 @@ class Instruction
 			end
 		when 0x0F05
 			@func = "syscall"
+		when 0x0F19..0x0F1F
+			@size = multi_byte == 8 ? 4 : multi_byte
+			parse_modrm
+			@func = (@opcode == 0x0F1F) && (@modrm.opcode_ext == 0) ? "nop" : "hint_nop"
 		when 0x0F40..0x0F4F
 			@func = "mov"
 			@cond = @opcode % 16
@@ -489,7 +493,7 @@ class Instruction
 			@cpu.flags.d = false
 		when 'std', # Set Direction Flag
 			@cpu.flags.d = true
-		when 'nop', 'pause'
+		when 'nop', 'pause', "hint_nop"
 			# do nothing
 		else
 			raise "function not implemented: " + @func
