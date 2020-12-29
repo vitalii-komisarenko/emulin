@@ -22,16 +22,32 @@ class Pointer
 		read.pack("C*").unpack(pack_scheme_signed)[0]
 	end
 	
-	def write(data)
+	def write_with_padding(data, padding)
 		if data.length < @size
-			data += Array.new(@size - data.length, 0)
+			data += Array.new(@size - data.length, padding)
 		end
 		if data.length > @size
-			data = data.slice(0, @size)
+			raise "Data does not fit into the buffer"
 		end
 		@mem.write(@pos, data)
 	end
+
+	def write_with_zero_extension(data)
+		write_with_padding(data, 0)
+	end
+
+	def write_with_sing_extension(data)
+		padding = data[data.length-1][7] == 1 ? 0xFF : 0
+		write_with_padding(data, padding)
+	end
 	
+	def write(data)
+		# TODO: remove implicit size convertions in the program
+		# and then rewrite this fucntion to check that size of
+		# input is equal to the size of the buffer
+		write_with_zero_extension(data)
+	end
+
 	def write_int(value)
 		write([value].pack(pack_scheme).unpack("C*"))
 	end
