@@ -238,6 +238,14 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.mm_or_xmm_register
 			@args.push @modrm.mm_or_xmm_register_or_memory
+		when 0x0FEF
+			# TODO: add support of VEX/EVEX
+			@func = "pxor"
+			@size = mm_or_xmm_operand_size
+			@xmm_item_size = 8
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register
+			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0F90..0x0F9F
 			@func = "set"
 			@size = 1
@@ -519,6 +527,12 @@ class Instruction
 				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
 				arg2 = Pointer.new(@args[0].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
 				arg1.write_int(arg1.read_int == arg2.read_int ? -1: 0)
+			end
+		when "pxor"
+			for i in 0..(@size / @xmm_item_size)
+				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
+				arg2 = Pointer.new(@args[0].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
+				arg1.write_int(arg1.read_int ^ arg2.read_int)
 			end
 		else
 			raise "function not implemented: " + @func
