@@ -230,6 +230,17 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.register
 			@args.push @modrm.register_or_memory
+		when 0x0F6F
+			# TODO: add support of VEX/EVEX
+			@func = "mov"
+			@size = mm_or_xmm_operand_size
+			if @prefix.repe
+				@size = 16
+			end
+			@xmm_item_size = 1
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register
+			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0F74..0x0F76
 			# TODO: add support of VEX/EVEX
 		 	@func = "pcmpeq"
