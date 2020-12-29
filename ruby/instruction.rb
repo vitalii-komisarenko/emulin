@@ -14,7 +14,7 @@ class InstructionPrefix
 	]
 
 	attr_reader :operand_size_overridden, :address_size_overridden, :segment,
-	            :repe, :repne
+	            :repe, :repne, :rex_w, :reg_extension, :rex_x, :rex_b
 	
 	def initialize(stream)
 		@operand_size_overridden = false
@@ -22,6 +22,11 @@ class InstructionPrefix
 		@repe = false
 		@repne = false
 		@segment = "none"
+
+		@rex_w = 0
+		@reg_extension = 0
+		@rex_x = 0
+		@rex_b = 0
 	
 		loop do
 			prefix = stream.read
@@ -29,6 +34,11 @@ class InstructionPrefix
 			case prefix
 			when *@@prefixes_to_ignore
 				"ignore"
+			when 0x40..0x4F # REX prefix
+				@rex_w = prefix[3]
+				@reg_extension = 8 * prefix[2]
+				@rex_x = prefix[1]
+				@rex_b = prefix[0]
 			when 0x64 # FS segment override
 				@segment = "FS"
 			when 0x65 # GS segment override
@@ -50,24 +60,6 @@ class InstructionPrefix
 	end
 end
 
-class REX
-	attr_reader :rex, :w, :r, :x, :b
-
-	def initialize(stream)
-		byte = stream.read
-		if (byte >= 0x40) and (byte <= 0x4F)
-			@rex = byte
-		else
-			stream.back
-			@rex = 0
-		end
-		@w = (@rex & 0x8) >> 3
-		@r = (@rex & 0x4) >> 2
-		@x = (@rex & 0x2) >> 1
-		@b = (@rex & 0x1)
-	end
-end
-
 class Instruction
 	attr_reader :function, :arguments
 	def initialize(stream, cpu, linux)
@@ -76,7 +68,6 @@ class Instruction
 		@linux = linux
 
 		@prefix = InstructionPrefix.new(stream)
-		@rex = REX.new(stream)
 		@opcode = read_opcode(stream)
 		@modrm = nil
 		
@@ -368,7 +359,7 @@ class Instruction
 	end
 	
 	def decode_register_from_opcode
-		reg = (@opcode % 8) + 8 * @rex.b
+		reg = (@opcode % 8) + 8 * @prefix.rex_b
 		@args.push Pointer.new(@cpu.register[reg], 0, @size)
 	end
 	
@@ -392,7 +383,7 @@ class Instruction
 
 	def parse_modrm
 		address_size = @prefix.address_size_overridden ? 4 : 8
-		@modrm = ModRM_Parser.new(@stream, @rex, @cpu, @size, address_size, segment_offset)
+		@modrm = ModRM_Parser.new(@stream, @prefix, @cpu, @size, address_size, segment_offset)
 	end
 
 	def unspecified_opcode_extension
@@ -711,7 +702,7 @@ class Instruction
 
 	# calculate operand size if operand size is not 1 ("multi-byte")
 	def multi_byte
-		if @rex.w == 1
+		if @prefix.rex_w == 1
 			return 8
 		elsif @prefix.operand_size_overridden
 			return 2
@@ -805,8 +796,8 @@ end
 class ModRM_Parser
 	attr_accessor :operand_size
 
-	def initialize(stream, rex, cpu, operand_size, address_size, segment_offset)
-		@rex = rex
+	def initialize(stream, prefix, cpu, operand_size, address_size, segment_offset)
+		@prefix = prefix
 		@stream = stream
 		@modrm = stream.read
 		@cpu = cpu
@@ -824,13 +815,13 @@ class ModRM_Parser
 	end
 	
 	def register
-		index = ((@modrm & 0x38) >> 3) + 8 * @rex.r
+		index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
 		return Pointer.new(@cpu.register[index], 0, @operand_size)
 	end
 	
 	def mm_or_xmm_register
 		# TODO: add support of VEX/EVEX
-		index = ((@modrm & 0x38) >> 3) + 8 * @rex.r
+		index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
 		if @operand_size == 8
 			return Pointer.new(@cpu.mm_register[index], 0, @operand_size)
 		else
@@ -839,7 +830,7 @@ class ModRM_Parser
 	end
 
 	def register_or_memory
-		regmem = (@modrm & 0x07) + 8 * @rex.b
+		regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
 		if mode == 0x03
 			return Pointer.new(@cpu.register[regmem], 0, @operand_size)		
 		else
@@ -863,7 +854,7 @@ class ModRM_Parser
 
 	def mm_or_xmm_register_or_memory
 		# TODO: add support of VEX/EVEX
-		regmem = (@modrm & 0x07) + 8 * @rex.b
+		regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
 		if mode == 0x03
 			if @operand_size == 8
 				return Pointer.new(@cpu.mm_register[regmem], 0, @operand_size)
@@ -900,8 +891,8 @@ class ModRM_Parser
 	def sib
 		sib = @stream.read
 		@scale = 2 ** (sib >> 6)
-		@index_reg = ((sib >> 3) & 0x07) + 8 * @rex.x
-		@base_reg = (sib & 0x07) + 8 * @rex.b
+		@index_reg = ((sib >> 3) & 0x07) + 8 * @prefix.rex_x
+		@base_reg = (sib & 0x07) + 8 * @prefix.rex_b
 
 		if @index_reg == 4
 			@index = 0
