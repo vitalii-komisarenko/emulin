@@ -144,11 +144,35 @@ class Instruction
 			@size = multi_byte
 			encode_accumulator
 			decode_register_from_opcode
+		when 0xA4
+			@func = "movs"
+			@size = 1
+		when 0xA5
+			@func = "movs"
+			@size = multi_byte
 		when 0xA6
 			@func = "cmps"
 			@size = 1
 		when 0xA7
 			@func = "cmps"
+			@size = multi_byte
+		when 0xAA
+			@func = "stos"
+			@size = 1
+		when 0xAB
+			@func = "stos"
+			@size = multi_byte
+		when 0xAC
+			@func = "lods"
+			@size = 1
+		when 0xAD
+			@func = "lods"
+			@size = multi_byte
+		when 0xAE
+			@func = "scas"
+			@size = 1
+		when 0xAF
+			@func = "scas"
 			@size = multi_byte
 		when 0xb0..0xb7
 			@func = "mov"
@@ -350,6 +374,10 @@ class Instruction
 
 	def unspecified_opcode_extension
 		raise "Unspecified opcode extension %d for opcode 0x%X" % [@modrm.opcode_ext, @opcode]
+	end
+
+	def max_address
+		return 256 ** @address_size
 	end
 
 	def read_opcode(stream)
@@ -582,29 +610,41 @@ class Instruction
 		end
 
 		loop do
+			rax = Pointer.new(@cpu.register[0], 0, @size)
 			rcx = Pointer.new(@cpu.register[1], 0, @size)
 			rsi = Pointer.new(@cpu.register[6], 0, @address_size)
 			rdi = Pointer.new(@cpu.register[7], 0, @address_size)
+
+			# ES:EDI, DS:ESI. Only DS can be overridden.
+			pointed_by_rdi = Pointer.new(@stream.mem, rdi.read_int % max_address, @size)
+			pointed_by_rsi = Pointer.new(@stream.mem, (segment_offset + rsi.read_int) % max_address, @size)
+
+			ptr_diff = @cpu.flags.d ? -@size : @size
 		
 			case string_func
 			when "cmps"
 				@func = "cmp"
-				address_size = @prefix
-				@args = [
-					Pointer.new(@stream.mem, rsi.read_int, @size),
-					Pointer.new(@stream.mem, rdi.read_int, @size),
-				]
+				@args = [pointed_by_rdi, pointed_by_rsi]
 				execute
+				rdi.write_int(rdi.read_int + ptr_diff)
+				rsi.write_int(rsi.read_int + ptr_diff)
+			when "movs"
+				pointed_by_rdi.write pointed_by_rsi.read
+				rdi.write_int(rdi.read_int + ptr_diff)
+				rsi.write_int(rsi.read_int + ptr_diff)
+			when "lods"
+				rax.write pointed_by_rsi.read
+				rsi.write_int(rsi.read_int + ptr_diff)
+			when "stos"
+				pointed_by_rdi.write rax.read
+				rdi.write_int(rdi.read_int + ptr_diff)
+			when "scas"
+				@func = "cmp"
+				@args = [rax, pointed_by_rdi]
+				execute
+				rdi.write_int(rdi.read_int + ptr_diff)
 			else
 				raise "string function not implemented: " + string_func
-			end
-			
-			if @cpu.flags.d
-				rsi.write_int(rsi.read_int - @size)
-				rdi.write_int(rdi.read_int - @size)
-			else
-				rsi.write_int(rsi.read_int + @size)
-				rdi.write_int(rdi.read_int + @size)
 			end
 			
 			# TODO: is RCX changed if there is no rep* prefix?
