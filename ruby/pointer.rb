@@ -1,7 +1,8 @@
 require_relative "utils"
 
 class Pointer
-	attr_reader :size, :mem, :pos
+	attr_reader :mem, :pos
+	attr_accessor :size
 
 	def initialize(mem, pos, size)
 		@mem = mem
