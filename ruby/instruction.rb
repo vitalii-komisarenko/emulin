@@ -156,6 +156,16 @@ class Instruction
 		when 0xA7
 			@func = "cmps"
 			@size = multi_byte
+		when 0xA8
+			@func = "test"
+			@size = 1
+			encode_accumulator
+			decode_immediate
+		when 0xA9
+			@func = "test"
+			@size = multi_byte
+			encode_accumulator
+			decode_immediate_16or32
 		when 0xAA
 			@func = "stos"
 			@size = 1
