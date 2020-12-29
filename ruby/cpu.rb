@@ -4,23 +4,37 @@ require_relative "register"
 require_relative "stack"
 
 class Cpu
-	attr_reader :register
+	attr_reader :register, :mm_register, :xmm_register
 	attr_writer :linux
 	attr_accessor :stopped, :flags, :stack, :mem_stream, :fs, :gs
 	
 	def initialize(mem, entry_point, stack_bottom)
 		@register = []
+		@mm_register = []
+		@xmm_register = []
 		@mem_stream = Stream.new(mem, entry_point)
 		@stopped = false
 		@flags = FlagsRegister.new
 		@stack = Stack.new(mem, stack_bottom)
 		@fs = 0
 		@gs = 0
-		for i in 1..16
+		for i in 0..15
 			reg = Register.new
 			reg.write(0, [i, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
-			reg.name = "reg #%d %s" % [(i - 1), @@reg_names[i-1]]
+			reg.name = "reg #%d %s" % [i, @@reg_names[i]]
 			@register.push reg
+		end
+
+		for i in 0..31
+			reg = MMRegister.new
+			reg.name = "mm #%d" % i
+			@mm_register.push reg
+		end
+
+		for i in 0..31
+			reg = XMMRegister.new
+			reg.name = "xmm #%d" % i
+			@xmm_register.push reg
 		end
 	end
 	

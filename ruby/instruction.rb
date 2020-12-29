@@ -86,6 +86,8 @@ class Instruction
 		            # the destination is encoded in the first argument
 		@cond = nil # condition to check for conditional operations (e.g. 'jne', 'cmovo')
 		
+		@xmm_item_size = nil
+		
 		@address_size = @prefix.address_size_overridden ? 4 : 8
 		
 		case @opcode
@@ -228,6 +230,14 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.register
 			@args.push @modrm.register_or_memory
+		when 0x0F74..0x0F76
+			# TODO: add support of VEX/EVEX
+		 	@func = "pcmpeq"
+			@size = mm_or_xmm_operand_size
+			@xmm_item_size = [1, 2, 4][0x0F76 - @opcode]
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register
+			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0F90..0x0F9F
 			@func = "set"
 			@size = 1
@@ -265,6 +275,11 @@ class Instruction
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
 		end
+	end
+	
+	def mm_or_xmm_operand_size
+		# TODO: add support of VEX/EVEX
+		return @prefix.operand_size_overridden ? 16 : 8
 	end
 	
 	def encode_accumulator
@@ -499,6 +514,12 @@ class Instruction
 			@cpu.flags.d = true
 		when 'nop', 'pause', "hint_nop"
 			# do nothing
+		when "pcmpeq"
+			for i in 0..(@size / @xmm_item_size)
+				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
+				arg2 = Pointer.new(@args[0].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
+				arg1.write_int(arg1.read_int == arg2.read_int ? -1: 0)
+			end
 		else
 			raise "function not implemented: " + @func
 		end
@@ -702,6 +723,16 @@ class ModRM_Parser
 		return Pointer.new(@cpu.register[index], 0, @operand_size)
 	end
 	
+	def mm_or_xmm_register
+		# TODO: add support of VEX/EVEX
+		index = ((@modrm & 0x38) >> 3) + 8 * @rex.r
+		if @operand_size == 8
+			return Pointer.new(@cpu.mm_register[index], 0, @operand_size)
+		else
+			return Pointer.new(@cpu.xmm_register[index], 0, @operand_size)
+		end
+	end
+
 	def register_or_memory
 		regmem = (@modrm & 0x07) + 8 * @rex.b
 		if mode == 0x03
@@ -724,7 +755,23 @@ class ModRM_Parser
 			end
 		end
 	end
-	
+
+	def mm_or_xmm_register_or_memory
+		# TODO: add support of VEX/EVEX
+		regmem = (@modrm & 0x07) + 8 * @rex.b
+		if mode == 0x03
+			if @operand_size == 8
+				return Pointer.new(@cpu.mm_register[regmem], 0, @operand_size)
+			else
+				return Pointer.new(@cpu.xmm_register[regmem], 0, @operand_size)
+			end
+		else
+			# TODO: is pointer to memory stored in a general purpose register
+			# or in MM/XMM register?
+			return register_or_memory
+		end
+	end
+
 	def memory_at(pos)
 		p "memory_at %x" % pos
 		# TODO: shall @segment_offset be used in all cases

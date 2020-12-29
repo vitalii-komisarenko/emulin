@@ -38,3 +38,9 @@ class Register < Addressable
 		]
 	end
 end
+
+class MMRegister < Addressable
+end
+
+class XMMRegister < Addressable
+end
