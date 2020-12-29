@@ -414,7 +414,7 @@ class Instruction
 	
 	def segment_offset
 		return @cpu.fs * 16 if @prefix.segment == "FS"
-		return @cpu.gs * 16 if @prefix.segment == "FS"
+		return @cpu.gs * 16 if @prefix.segment == "GS"
 		return 0 if @prefix.segment == "none"
 		raise "unexpected name of the segment: " + @prefix.segment
 	end
