@@ -437,15 +437,8 @@ class Instruction
 			@args[0].write_int @args[1].pos
 		when "mov", "set"
 			@args[0].write @args[1].read
-		when "movq" # used in moving data from lowest bits of XMM to XMM/memory
-			@args[0].write @args[1].read
-			if @args[0].size != @args[1].size
-				# clear highest bits of XMM register
-				highest_bits = Pointer.new(@args[0].mem,
-					@args[0].pos + @args[0].size,
-					@args[1].size - @args[0].size)
-				highest_bits.write_int 0 # TODO: support more than 8 bytes to clear
-			end
+		when "movq" # used in moving data from the lowest bits of XMM to XMM/memory
+			@args[0].write_with_zero_extension @args[1].read
 		when "movsxd"
 			@args[0].write_int @args[1].read_signed
 		when "movzx"
