@@ -302,6 +302,17 @@ class Instruction
 			else
 				@args[1].size = 8 # fix size
 			end
+		when 0x0FD6
+			# TODO: add support of VEX/EVEX
+			raise "not implemented" unless @prefix.operand_size_overridden
+			@func = "movq"
+			@size = 8
+			parse_modrm
+			@args.push @modrm.xmm_register_or_memory
+			@args.push @modrm.xmm_register
+			if @modrm.mode == 0x3 # points to a register
+				@args[1].size = 16 # to clear highest bits of the XMM register
+			end
 		when 0x0FEF
 			# TODO: add support of VEX/EVEX
 			@func = "pxor"
@@ -828,6 +839,12 @@ class ModRM_Parser
 			return Pointer.new(@cpu.xmm_register[index], 0, @operand_size)
 		end
 	end
+	
+	def xmm_register
+		# TODO: add support of VEX/EVEX
+		index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
+		return Pointer.new(@cpu.xmm_register[index], 0, @operand_size)
+	end
 
 	def register_or_memory
 		regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
@@ -867,6 +884,19 @@ class ModRM_Parser
 			return register_or_memory
 		end
 	end
+
+	def xmm_register_or_memory
+		# TODO: add support of VEX/EVEX
+		regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
+		if mode == 0x03
+			return Pointer.new(@cpu.xmm_register[regmem], 0, @operand_size)
+		else
+			# TODO: is pointer to memory stored in a general purpose register
+			# or in MM/XMM register?
+			return register_or_memory
+		end
+	end
+
 
 	def memory_at(pos)
 		p "memory_at %x" % pos
