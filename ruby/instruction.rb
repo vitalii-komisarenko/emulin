@@ -238,9 +238,22 @@ class Instruction
 		when 0xEB
 			@func = "jmp"
 			decode_relative_address 1
+		when 0xFE
+			@size = 1
+			parse_modrm
+			unspecified_opcode_extension unless [0, 1].include? @modrm.opcode_ext
+			@func = @modrm.opcode_ext == 0 ? "inc" : "dec"
+			@args.push @modrm.register_or_memory
+			encode_value 1
 		when 0xFF
 			parse_modrm
 			case @modrm.opcode_ext
+			when 0, 1
+				@func = @modrm.opcode_ext == 0 ? "inc" : "dec"
+				@size = multi_byte
+				@modrm.operand_size = multi_byte
+				@args.push @modrm.register_or_memory
+				encode_value 1
 			when 4
 				@func = "jmp"
 				# TODO: unspecified behaviour for 16 and 32-bit operands
@@ -523,7 +536,7 @@ class Instruction
 			update_flags("...sz.p.", value, @args[0].size)
 			@cpu.flags.o = false
 			@cpu.flags.c = false
-		when 'add', 'adc'
+		when 'add', 'adc', 'inc'
 			highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
 			highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
 			
@@ -531,7 +544,7 @@ class Instruction
 			value = @args[0].read_int + @args[1].read_signed + cf
 			@args[0].write_int value
 
-			@cpu.flags.c = value >= 2 ** (8 * @args[0].size)
+			@cpu.flags.c = value >= 2 ** (8 * @args[0].size) unless @func == "inc"
 
 			highest_res  = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
 			
@@ -540,7 +553,7 @@ class Instruction
 
 			update_flags("...sz.p.", value, @args[0].size)
 			# TODO: @cpu.flags.a
-		when 'sub', 'sbb', 'cmp'
+		when 'sub', 'sbb', 'cmp', 'dec'
 			highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
 			highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
 
@@ -549,7 +562,7 @@ class Instruction
 			@args[0].write_int(value) unless @func == 'cmp'
 			update_flags("...sz.p.", value, @args[0].size)
 
-			@cpu.flags.c = value < 0
+			@cpu.flags.c = value < 0 unless @func == "dec"
 
 			highest_res = value[2 ** (8 * @size - 1)] == 1
 			@cpu.flags.o = (!highest_bit1 && highest_bit2 && highest_res) ||
