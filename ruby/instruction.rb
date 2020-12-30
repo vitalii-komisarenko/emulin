@@ -101,6 +101,13 @@ class Instruction
 			@func = "push"
 			@size = @opcode == 0x68 ? multi_byte : 1
 			decode_immediate_16or32
+		when 0x0FBE..0x0FBF
+			@func = "movsx"
+			@size = multi_byte
+			parse_modrm
+			@args.push @modrm.register
+			@modrm.operand_size = @opcode == 0x0FBE ? 1 : 2
+			@args.push @modrm.register_or_memory
 		when 0x0FB6..0x0FB7
 			@func = "movzx"
 			@size = multi_byte
@@ -494,7 +501,7 @@ class Instruction
 			@args[0].write @args[1].read
 		when "movq" # used in moving data from the lowest bits of XMM to XMM/memory
 			@args[0].write_with_zero_extension @args[1].read
-		when "movsxd"
+		when "movsxd", "movsx"
 			@args[0].write_int @args[1].read_signed
 		when "movzx"
 			@args[0].write_int @args[1].read_int
