@@ -311,6 +311,14 @@ class Instruction
 			else
 				@args[1].size = 8 # fix size
 			end
+		when 0x0FD4
+			# TODO: add support of VEX/EVEX
+			@func = "padd"
+			@size = mm_or_xmm_operand_size
+			@xmm_item_size = 8
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register
+			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0FD6
 			# TODO: add support of VEX/EVEX
 			raise "not implemented" unless @prefix.operand_size_overridden
@@ -623,6 +631,12 @@ class Instruction
 				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
 				arg2 = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
 				arg1.write_int(arg1.read_int ^ arg2.read_int)
+			end
+		when "padd"
+			for i in 0..(@size / @xmm_item_size)
+				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
+				arg2 = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
+				arg1.write_int(arg1.read_int + arg2.read_int)
 			end
 		when "punpckl"
 			arr = []
