@@ -268,6 +268,7 @@ class Instruction
 			@size = multi_byte == 8 ? 4 : multi_byte
 			parse_modrm
 			@func = (@opcode == 0x0F1F) && (@modrm.opcode_ext == 0) ? "nop" : "hint_nop"
+			@args.push @modrm.register_or_memory
 		when 0x0F40..0x0F4F
 			@func = "mov"
 			@cond = @opcode % 16
