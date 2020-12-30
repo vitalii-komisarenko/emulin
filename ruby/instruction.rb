@@ -268,6 +268,15 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.register
 			@args.push @modrm.register_or_memory
+		when 0x0F6C
+			# TODO: add support of VEX/EVEX
+			@func = "punpckl"
+			raise "missing operand-size override prefix" unless @prefix.operand_size_overridden
+			@size = 16
+			@xmm_item_size = 8
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register
+			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0F6F
 			# TODO: add support of VEX/EVEX
 			@func = "mov"
@@ -606,15 +615,25 @@ class Instruction
 		when "pcmpeq"
 			for i in 0..(@size / @xmm_item_size)
 				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
-				arg2 = Pointer.new(@args[0].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
+				arg2 = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
 				arg1.write_int(arg1.read_int == arg2.read_int ? -1: 0)
 			end
 		when "pxor"
 			for i in 0..(@size / @xmm_item_size)
 				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
-				arg2 = Pointer.new(@args[0].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
+				arg2 = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
 				arg1.write_int(arg1.read_int ^ arg2.read_int)
 			end
+		when "punpckl"
+			arr = []
+			for i in 0..(@size / @xmm_item_size)
+				dest = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
+				arg2 = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
+				arr += dest.read
+				arr += arg2.read
+			end
+			arr = arr.slice(0, @size)
+			@args[0].write arr
 		else
 			raise "function not implemented: " + @func
 		end
