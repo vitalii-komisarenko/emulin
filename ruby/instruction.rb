@@ -606,23 +606,29 @@ class Instruction
 		when 'nop', 'pause', "hint_nop"
 			# do nothing
 		when "pcmpeq"
-			for i in 0..(@size / @xmm_item_size)
-				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
-				arg2 = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
-				arg1.write_int(arg1.read_int == arg2.read_int ? -1: 0)
-			end
+			for_each_xmm_item(lambda{|dest, arg| dest == arg ? -1: 0})
 		when "pxor"
-			for i in 0..(@size / @xmm_item_size)
-				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
-				arg2 = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
-				arg1.write_int(arg1.read_int ^ arg2.read_int)
-			end
+			for_each_xmm_item(lambda{|dest, arg| dest ^ arg})
+		when "pand"
+			for_each_xmm_item(lambda{|dest, arg| dest & arg})
+		when "pandn"
+			for_each_xmm_item(lambda{|dest, arg| (~dest) & arg})
+		when "por"
+			for_each_xmm_item(lambda{|dest, arg| dest | arg})
 		when "padd"
-			for i in 0..(@size / @xmm_item_size)
-				arg1 = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
-				arg2 = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
-				arg1.write_int(arg1.read_int + arg2.read_int)
-			end
+			for_each_xmm_item(lambda{|dest, arg| dest + arg})
+		when "psub"
+			for_each_xmm_item(lambda{|dest, arg| dest - arg})
+		when "psubus"
+			for_each_xmm_item(lambda{|dest, arg| [dest - arg, 0].max})
+		when "paddus"
+			for_each_xmm_item(lambda{|dest, arg| [dest + arg, 256 ** @xmm_item_size - 1].min})
+		when "pminu"
+			for_each_xmm_item(lambda{|dest, arg| [dest, arg].min})
+		when "pmaxu"
+			for_each_xmm_item(lambda{|dest, arg| [dest, arg].max})
+		when "pavg"
+			for_each_xmm_item(lambda{|dest, arg| (dest + arg + 1) >> 1})
 		when "punpckl"
 			arr = []
 			for i in 0..(@size / @xmm_item_size)
@@ -638,6 +644,16 @@ class Instruction
 		end
 	end
 	
+	def for_each_xmm_item(func)
+		for i in 0..(@size / @xmm_item_size)
+			dest_ptr = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
+			arg_ptr  = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
+			dest = dest_ptr.read_int
+			arg = arg_ptr.read_int
+			dest_ptr.write_int(func.call(dest, arg))
+		end
+	end
+
 	def execute_string_instruction
 		string_func = @func
 		
@@ -798,7 +814,22 @@ class Instruction
 		0x0F75 => ['pcmpeq', 2],
 		0x0F76 => ['pcmpeq', 4],
 		0x0FD4 => ['padd', 8],
-		0x0FEF => ['pxor', 8], # any number is OK
+		0x0FD8 => ['psubus', 1],
+		0x0FD9 => ['psubus', 2],
+		0x0FDA => ['pminu', 1],
+		0x0FDB => ['pand', 8],
+		0x0FDC => ['paddus', 1],
+		0x0FDD => ['paddus', 2],
+		0x0FDE => ['pmaxu', 1],
+		0x0FDF => ['pandn', 1],
+		0x0FE0 => ['pavg', 1],
+		0x0FE3 => ['pavg', 2],
+		0x0FEB => ['por', 8],
+		0x0FEF => ['pxor', 8],
+		0x0FF8 => ['psub', 1],
+		0x0FF9 => ['psub', 2],
+		0x0FFA => ['psub', 4],
+		0x0FFB => ['psub', 8],
 		0x0FFC => ['padd', 1],
 		0x0FFD => ['padd', 2],
 		0x0FFE => ['padd', 4],
