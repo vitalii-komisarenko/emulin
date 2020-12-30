@@ -221,6 +221,10 @@ class Instruction
 			unspecified_opcode_extension unless @modrm.opcode_ext == 0
 			@args.push @modrm.register_or_memory
 			decode_immediate_16or32
+		when 0xE0..0xE2
+			@func = ["loopnz", "loopz", "loop"][@opcode - 0xE0]
+			encode_counter
+			decode_relative_address 1
 		when 0xE8
 			if @prefix.operand_size_overridden
 				raise "Use of operand-size prefix in 64-bit mode may result in implementation-dependent behaviour"
@@ -374,11 +378,19 @@ class Instruction
 		# TODO: add support of VEX/EVEX
 		return @prefix.operand_size_overridden ? 16 : 8
 	end
-	
-	def encode_accumulator
-		@args.push Pointer.new(@cpu.register[0], 0, @size)
+
+	def encode_regiser(reg)
+		@args.push Pointer.new(@cpu.register[reg], 0, @size)
 	end
-	
+
+	def encode_accumulator
+		encode_regiser(0)
+	end
+
+	def encode_counter
+		encode_regiser(1)
+	end
+
 	def decode_register_from_opcode
 		reg = (@opcode % 8) + 8 * @prefix.rex_b
 		@args.push Pointer.new(@cpu.register[reg], 0, @size)
@@ -601,6 +613,13 @@ class Instruction
 			end
 		when 'jmp'
 			jump @args[0]
+		when 'loop', 'loopz', 'loopnz'
+			rcx = @args[0]
+			rcx.write_int(rcx.read_int - 1)
+			return if rcx.read_int == 0
+			jump @args[1] if @func == "loop"
+			jump @args[1] if (@func == "loopz") && @cpu.flags.z
+			jump @args[1] if (@func == "loopnz") && !@cpu.flags.z
 		when 'sahf'
 			ah = @cpu.register[0].read(1, 1)[0]
 			@cpu.flags.c = ah[0]
