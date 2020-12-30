@@ -288,14 +288,6 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.mm_or_xmm_register
 			@args.push @modrm.mm_or_xmm_register_or_memory
-		when 0x0F74..0x0F76
-			# TODO: add support of VEX/EVEX
-		 	@func = "pcmpeq"
-			@size = mm_or_xmm_operand_size
-			@xmm_item_size = [1, 2, 4][0x0F76 - @opcode]
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
-			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0F7E
 			# TODO: add support of VEX/EVEX
 			@func = "movq"
@@ -311,14 +303,6 @@ class Instruction
 			else
 				@args[1].size = 8 # fix size
 			end
-		when 0x0FD4
-			# TODO: add support of VEX/EVEX
-			@func = "padd"
-			@size = mm_or_xmm_operand_size
-			@xmm_item_size = 8
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
-			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0FD6
 			# TODO: add support of VEX/EVEX
 			raise "not implemented" unless @prefix.operand_size_overridden
@@ -330,14 +314,6 @@ class Instruction
 			if @modrm.mode == 0x3 # points to a register
 				@args[1].size = 16 # to clear highest bits of the XMM register
 			end
-		when 0x0FEF
-			# TODO: add support of VEX/EVEX
-			@func = "pxor"
-			@size = mm_or_xmm_operand_size
-			@xmm_item_size = 8
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
-			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0F90..0x0F9F
 			@func = "set"
 			@size = 1
@@ -371,6 +347,15 @@ class Instruction
 				decode_immediate_16or32
 			elsif @@no_args_opcodes.key? @opcode
 				@func = @@reg_regmem_opcodes[@opcode]
+			elsif @@mm_xmm_reg_regmem_opcodes.key? @opcode
+				# TODO: add support of VEX/EVEX
+				arr = @@mm_xmm_reg_regmem_opcodes[@opcode]
+				@func = arr[0]
+				@xmm_item_size = arr[1]
+				@size = mm_or_xmm_operand_size
+				parse_modrm
+				@args.push @modrm.mm_or_xmm_register
+				@args.push @modrm.mm_or_xmm_register_or_memory
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
@@ -804,6 +789,21 @@ class Instruction
 		0x8D => ['lea', 0, 0],
 	}
 	
+	@@mm_xmm_reg_regmem_opcodes = {
+		# format: opcode => [operation, item size]
+		0x0F60 => ['punpckl', 1],
+		0x0F61 => ['punpckl', 2],
+		0x0F62 => ['punpckl', 4],
+		0x0F74 => ['pcmpeq', 1],
+		0x0F75 => ['pcmpeq', 2],
+		0x0F76 => ['pcmpeq', 4],
+		0x0FD4 => ['padd', 8],
+		0x0FEF => ['pxor', 8], # any number is OK
+		0x0FFC => ['padd', 1],
+		0x0FFD => ['padd', 2],
+		0x0FFE => ['padd', 4],
+	}
+
 	@@acc_imm_opcodes = {
 		# format: opcode => [operation, is8bit]
 		0x04 => ['add', 1],
