@@ -601,6 +601,11 @@ class Instruction
 			@cpu.flags.o = (!highest_bit1 && highest_bit2 && highest_res) ||
 			               (highest_bit1 && !highest_bit2 && !highest_res)
 			# TODO: @cpu.flags.a
+		when 'xadd'
+			@func = 'xchg'
+			execute
+			@func = 'add'
+			execute
 		when "rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"
 			times = @args[1].read_int % (2 ** @size)
 			times.times do
@@ -867,6 +872,8 @@ class Instruction
 		0x8A => ['mov', 1, 0],
 		0x8B => ['mov', 0, 0],
 		0x8D => ['lea', 0, 0],
+		0x0FC0 => ['xadd', 1, 0],
+		0x0FC1 => ['xadd', 0, 0],
 	}
 	
 	@@mm_xmm_reg_regmem_opcodes = {
