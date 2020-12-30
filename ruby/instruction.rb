@@ -705,7 +705,7 @@ class Instruction
 			when "repe"
 				break if rcx_empty || !@cpu.flags.z
 			when "repne"
-				break if rcx_empty || !@cpu.flags.z
+				break if rcx_empty || @cpu.flags.z
 			else
 				raise "bad loop_mode: %s" % loop_mode
 			end
