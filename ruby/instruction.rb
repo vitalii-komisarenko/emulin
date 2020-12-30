@@ -601,6 +601,22 @@ class Instruction
 			end
 		when 'jmp'
 			jump @args[0]
+		when 'sahf'
+			ah = @cpu.register[0].read(1, 1)[0]
+			@cpu.flags.c = ah[0]
+			@cpu.flags.p = ah[2]
+			@cpu.flags.a = ah[4]
+			@cpu.flags.z = ah[6]
+			@cpu.flags.s = ah[7]
+		when 'lahf'
+			ah = 0
+			ah += @cpu.flags.c ? 1 : 0
+			ah += 2
+			ah += @cpu.flags.p ? 4 : 0
+			ah += @cpu.flags.a ? 16 : 0
+			ah += @cpu.flags.z ? 64 : 0
+			ah += @cpu.flags.s ? 128 : 0
+			@cpu.register[0].write(1, [ah])
 		when 'cmc' # Complement Carry Flag
 			@cpu.flags.c = !@cpu.flags.c
 		when 'clc', # Clear Carry Flag
@@ -866,13 +882,15 @@ class Instruction
 	}
 	
 	@@no_args_opcodes = {
-        0xF5 => 'cmc', # Complement Carry Flag
-        0xF8 => 'clc', # Clear Carry Flag
-        0xF9 => 'stc', # Set Carry Flag
-        0xFA => 'cli', # Clear Interrupt Flag
-        0xFB => 'sti', # Set Interrupt Flag
-        0xFC => 'cld', # Clear Direction Flag
-        0xFD => 'std', # Set Direction Flag
+		0x9E => 'sahf',# Store AH into Flags
+		0x9F => 'lahf',# Load Status Flags into AH Register
+		0xF5 => 'cmc', # Complement Carry Flag
+		0xF8 => 'clc', # Clear Carry Flag
+		0xF9 => 'stc', # Set Carry Flag
+		0xFA => 'cli', # Clear Interrupt Flag
+		0xFB => 'sti', # Set Interrupt Flag
+		0xFC => 'cld', # Clear Direction Flag
+		0xFD => 'std', # Set Direction Flag
 	}
 end
 
