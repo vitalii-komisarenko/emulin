@@ -368,6 +368,15 @@ class Instruction
 				parse_modrm
 				@args.push @modrm.mm_or_xmm_register
 				@args.push @modrm.mm_or_xmm_register_or_memory
+			elsif @@mm_xmm_reg_regmem_opcodes_signed.key? @opcode
+				# TODO: add support of VEX/EVEX
+				arr = @@mm_xmm_reg_regmem_opcodes_signed[@opcode]
+				@func = arr[0]
+				@xmm_item_size = arr[1]
+				@size = mm_or_xmm_operand_size
+				parse_modrm
+				@args.push @modrm.mm_or_xmm_register
+				@args.push @modrm.mm_or_xmm_register_or_memory
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
@@ -672,6 +681,8 @@ class Instruction
 			for_each_xmm_item(lambda{|dest, arg| [dest, arg].max})
 		when "pavg"
 			for_each_xmm_item(lambda{|dest, arg| (dest + arg + 1) >> 1})
+		when "pcmpgt"
+			for_each_xmm_item_signed(lambda{|dest, arg| dest > arg ? -1: 0})
 		when "punpckl"
 			arr = []
 			for i in 0..(@size / @xmm_item_size)
@@ -688,6 +699,16 @@ class Instruction
 	end
 	
 	def for_each_xmm_item(func)
+		for i in 0..(@size / @xmm_item_size)
+			dest_ptr = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
+			arg_ptr  = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
+			dest = dest_ptr.read_int
+			arg = arg_ptr.read_int
+			dest_ptr.write_int(func.call(dest, arg))
+		end
+	end
+	
+	def for_each_xmm_item_signed(func)
 		for i in 0..(@size / @xmm_item_size)
 			dest_ptr = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
 			arg_ptr  = Pointer.new(@args[1].mem, @args[1].pos + i * @xmm_item_size, @xmm_item_size)
@@ -876,6 +897,13 @@ class Instruction
 		0x0FFC => ['padd', 1],
 		0x0FFD => ['padd', 2],
 		0x0FFE => ['padd', 4],
+	}
+
+	@@mm_xmm_reg_regmem_opcodes_signed = {
+		# format: opcode => [operation, item size]
+		0x0F64 => ['pcmpgt', 1],
+		0x0F65 => ['pcmpgt', 2],
+		0x0F66 => ['pcmpgt', 4],
 	}
 
 	@@acc_imm_opcodes = {
