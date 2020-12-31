@@ -608,6 +608,7 @@ class Instruction
 			execute
 		when "rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"
 			times = @args[1].read_int % (2 ** @size)
+			bit_array = @args[0].read_bit_array
 			times.times do
 				case @func
 				when "rol"
@@ -621,6 +622,27 @@ class Instruction
 					@cpu.flags.c = value & 1 == 1
 					@args[0].write_int(value / 2)
 					@cpu.flags.o = orig_highest_bit == 1
+				when "rcl"
+					bit_array.shift(@cpu.flags.c ? 1 : 0)
+					@cpu.flags.c = (bit_array.pop) == 1
+					@cpu.flags.o = @cpu.flags.c ^ (bit_array[-1] == 1)
+					@args[0].write_bit_array bit_array					
+				when "rcr"
+					bit_array.push(@cpu.flags.c ? 1 : 0)
+					@cpu.flags.c = (bit_array.unshift) == 1
+					@cpu.flags.o = bit_array[-1] != bit_array[-2]
+					@args[0].write_bit_array bit_array					
+				when "shr", "sar"
+					orig_highest_bit = bit_array[-1]
+					bit_array.push(@func == "shr" ? 0 : bit_array[-1])
+					@cpu.flags.c = bit_array.unshift == 1
+					@cpu.flags.o = (@func == "shr" ? orig_highest_bit : 0) if times == 1
+					@args[0].write_bit_array bit_array
+				when "shl", "sal"
+					bit_array.shift 0
+					@cpu.flags.c = bit_array.pop == 1
+					@cpu.flags.o = @cpu.flags.c != (bit_array[-1] == 1) if times == 1
+					@args[0].write_bit_array bit_array
 				else
 					raise "function not implemented: " + @func
 				end

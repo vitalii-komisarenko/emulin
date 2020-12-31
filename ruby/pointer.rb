@@ -22,6 +22,10 @@ class Pointer
 		read.pack("C*").unpack(pack_scheme_signed)[0]
 	end
 	
+	def read_bit_array
+		@mem.read_bit_array(@pos, @size)
+	end
+	
 	def write_with_padding(data, padding)
 		if data.length < @size
 			data += Array.new(@size - data.length, padding)
@@ -46,6 +50,10 @@ class Pointer
 		# and then rewrite this fucntion to check that size of
 		# input is equal to the size of the buffer
 		write_with_zero_extension(data)
+	end
+	
+	def write_bit_array(data)
+		@mem.write_bit_array(@pos, data)
 	end
 
 	def write_int(value)
