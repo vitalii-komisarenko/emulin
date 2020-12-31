@@ -726,7 +726,7 @@ class Instruction
 			for_each_xmm_item_signed(lambda{|dest, arg| dest > arg ? -1: 0})
 		when "pssl"
 			for_each_xmm_item_and_constant(lambda{|dest, arg| dest << arg})
-		when "punpckl"
+		when "punpckl", "punpckh"
 			arr = []
 			for i in 0..(@size / @xmm_item_size)
 				dest = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
@@ -734,7 +734,7 @@ class Instruction
 				arr += dest.read
 				arr += arg2.read
 			end
-			arr = arr.slice(0, @size)
+			arr = (@func == "punpckl") ? arr.slice(0, @size) : arr.slice(@size, @size)
 			@args[0].write arr
 		else
 			raise "function not implemented: " + @func
@@ -928,6 +928,9 @@ class Instruction
 		0x0F60 => ['punpckl', 1],
 		0x0F61 => ['punpckl', 2],
 		0x0F62 => ['punpckl', 4],
+		0x0F68 => ['punpckh', 1],
+		0x0F69 => ['punpckh', 2],
+		0x0F6A => ['punpckh', 4],
 		0x0F74 => ['pcmpeq', 1],
 		0x0F75 => ['pcmpeq', 2],
 		0x0F76 => ['pcmpeq', 4],
