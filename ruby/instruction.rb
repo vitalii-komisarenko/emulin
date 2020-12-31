@@ -358,6 +358,12 @@ class Instruction
 			else
 				@args[1].size = 8 # fix size
 			end
+		when 0x0F7F
+			@func = "mov"
+			@size = (@prefix.operand_size_overridden || @prefix.repe) ? 16 : 8
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register_or_memory
+			@args.push @modrm.mm_or_xmm_register
 		when 0x0FD6
 			# TODO: add support of VEX/EVEX
 			raise "not implemented" unless @prefix.operand_size_overridden
