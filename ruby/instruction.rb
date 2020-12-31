@@ -307,10 +307,27 @@ class Instruction
 			when 2,4
 				raise "opcode extension not implemented"
 			when 6
-				@func = "pssl"
+				@func = "psll"
 				@xmm_item_size = 4
 				@args.push @modrm.mm_or_xmm_register_or_memory
 				decode_immediate 1
+			else
+				unspecified_opcode_extension
+			end
+		when 0x0F73
+			@size = mm_or_xmm_operand_size
+			parse_modrm
+			case @modrm.opcode_ext
+			when 2
+				raise "not implemented"
+			when 6
+				@func = "psll"
+				@xmm_item_size = 8
+				@args.push @modrm.mm_or_xmm_register_or_memory
+				decode_immediate 1
+			when 3, 7
+				# TODO: verify that prefix 66 exists
+				raise "not implemented"
 			else
 				unspecified_opcode_extension
 			end
@@ -724,7 +741,9 @@ class Instruction
 			for_each_xmm_item(lambda{|dest, arg| (dest + arg + 1) >> 1})
 		when "pcmpgt"
 			for_each_xmm_item_signed(lambda{|dest, arg| dest > arg ? -1: 0})
-		when "pssl"
+		when "psll"
+			for_each_xmm_item_and_constant(lambda{|dest, arg| dest << arg})
+		when "psll"
 			for_each_xmm_item_and_constant(lambda{|dest, arg| dest << arg})
 		when "punpckl", "punpckh"
 			arr = []
