@@ -300,6 +300,20 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.mm_or_xmm_register
 			@args.push @modrm.mm_or_xmm_register_or_memory
+		when 0x0F72
+			@size = mm_or_xmm_operand_size
+			parse_modrm
+			case @modrm.opcode_ext
+			when 2,4
+				raise "opcode extension not implemented"
+			when 6
+				@func = "pssl"
+				@xmm_item_size = 4
+				@args.push @modrm.mm_or_xmm_register_or_memory
+				decode_immediate 1
+			else
+				unspecified_opcode_extension
+			end
 		when 0x0F7E
 			# TODO: add support of VEX/EVEX
 			@func = "movq"
@@ -710,6 +724,8 @@ class Instruction
 			for_each_xmm_item(lambda{|dest, arg| (dest + arg + 1) >> 1})
 		when "pcmpgt"
 			for_each_xmm_item_signed(lambda{|dest, arg| dest > arg ? -1: 0})
+		when "pssl"
+			for_each_xmm_item_and_constant(lambda{|dest, arg| dest << arg})
 		when "punpckl"
 			arr = []
 			for i in 0..(@size / @xmm_item_size)
@@ -743,6 +759,15 @@ class Instruction
 			arg = arg_ptr.read_int
 			dest_ptr.write_int(func.call(dest, arg))
 		end
+	end
+	
+	def for_each_xmm_item_and_constant(func)
+		arg = @args[1].read_int
+		for i in 0..(@size / @xmm_item_size)
+			dest_ptr = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
+			dest = dest_ptr.read_int
+			dest_ptr.write_int(func.call(dest, arg))
+		end	
 	end
 
 	def execute_string_instruction
