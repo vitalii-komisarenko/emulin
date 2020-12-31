@@ -375,6 +375,13 @@ class Instruction
 			if @modrm.mode == 0x3 # points to a register
 				@args[1].size = 16 # to clear highest bits of the XMM register
 			end
+		when 0x0FD7
+			@func = "pmovmsk"
+			parse_modrm
+			@size = 4
+			@args.push @modrm.register
+			@size = mm_or_xmm_operand_size
+			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0F90..0x0F9F
 			@func = "set"
 			@size = 1
@@ -773,6 +780,9 @@ class Instruction
 			end
 			arr = (@func == "punpckl") ? arr.slice(0, @size) : arr.slice(@size, @size)
 			@args[0].write arr
+		when "pmovmsk"
+			arr = @args[1].read.map{|x| x[7]}
+			args[0].write_with_zero_extension(arr)
 		else
 			raise "function not implemented: " + @func
 		end
