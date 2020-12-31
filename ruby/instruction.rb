@@ -273,6 +273,18 @@ class Instruction
 			parse_modrm
 			@func = (@opcode == 0x0F1F) && (@modrm.opcode_ext == 0) ? "nop" : "hint_nop"
 			@args.push @modrm.register_or_memory
+		when 0x0F28
+			@func = "movap"
+			@size = 16
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register
+			@args.push @modrm.mm_or_xmm_register_or_memory
+		when 0x0F29
+			@func = "movap"
+			@size = 16
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register_or_memory
+			@args.push @modrm.mm_or_xmm_register
 		when 0x0F40..0x0F4F
 			@func = "mov"
 			@cond = @opcode % 16
@@ -550,7 +562,7 @@ class Instruction
 		when "lea"
 			raise "LEA & register-direct addressing mode" if @modrm.mode == 0x03
 			@args[0].write_int @args[1].pos
-		when "mov", "set"
+		when "mov", "set", "movap"
 			@args[0].write @args[1].read
 		when "movq" # used in moving data from the lowest bits of XMM to XMM/memory
 			@args[0].write_with_zero_extension @args[1].read
