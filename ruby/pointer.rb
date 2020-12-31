@@ -102,3 +102,9 @@ class Pointer
 		return highest_bit_set ? 1 : 0
 	end
 end
+
+class PointerSigned < Pointer
+	def read_int
+		read_signed
+	end
+end

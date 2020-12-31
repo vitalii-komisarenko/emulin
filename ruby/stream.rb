@@ -25,4 +25,10 @@ class Stream
 		@pos += size
 		return res
 	end
+
+	def read_signed_pointer(size)
+		res = Pointer.new(@mem, @pos, size)
+		@pos += size
+		return res
+	end
 end
