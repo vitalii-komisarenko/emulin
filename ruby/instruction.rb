@@ -280,9 +280,9 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.register
 			@args.push @modrm.register_or_memory
-		when 0x0F6C
+		when 0x0F6C, 0x0F6D
 			# TODO: add support of VEX/EVEX
-			@func = "punpckl"
+			@func = @opcode == 0x0F6C ? "punpckl" : "punpckh"
 			raise "missing operand-size override prefix" unless @prefix.operand_size_overridden
 			@size = 16
 			@xmm_item_size = 8
