@@ -193,7 +193,7 @@ class Instruction
 			decode_register_from_opcode
 			decode_immediate
 		when 0xC0, 0xC1, 0xD0..0xD3
-			@size = @opcode % 2 ? 1 : multi_byte
+			@size = @opcode % 2 == 0 ? 1 : multi_byte
 			parse_modrm
 			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][@modrm.opcode_ext]
 			@args = [ @modrm.register_or_memory ]
