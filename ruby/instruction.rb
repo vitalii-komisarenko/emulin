@@ -382,6 +382,14 @@ class Instruction
 			@args.push @modrm.register
 			@size = mm_or_xmm_operand_size
 			@args.push @modrm.mm_or_xmm_register_or_memory
+		when 0x0FF0
+			raise "F2 prefix expected" unless @prefix.repne
+			@func = "mov"
+			@size = 16
+			parse_modrm
+			@args.push @modrm.xmm_register
+			raise "register expected, but ModR/M mode is not 0b11" unless @modrm.mode != 3
+			@args.push @modrm.xmm_register_or_memory
 		when 0x0F90..0x0F9F
 			@func = "set"
 			@size = 1
