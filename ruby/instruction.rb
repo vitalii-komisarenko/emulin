@@ -298,6 +298,16 @@ class Instruction
 			end
 		when 0x0F05
 			@func = "syscall"
+		when 0x0F10..0x0F11
+			if @prefix.operand_size_overridden || @prefix.repe || @prefix.repne
+				raise "not implemented"
+			end
+			@func = "mov"
+			@size = 16
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register
+			@args.push @modrm.mm_or_xmm_register_or_memory
+			@args = [@args[1], @args[0]] if @opcode == 0x0F11
 		when 0x0F19..0x0F1F
 			@size = multi_byte == 8 ? 4 : multi_byte
 			parse_modrm
