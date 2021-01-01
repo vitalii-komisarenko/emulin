@@ -260,19 +260,19 @@ class Instruction
 				raise "opcode extension not implemented for opcode 0xF6: %d" % @modrm.opcode_ext
 			end
 		when 0xF7
+			@size = multi_byte
 			parse_modrm
 			case @modrm.opcode_ext
 			when 0, 1
 				@func = "test"
-				@size = multi_byte
-				@modrm.operand_size = multi_byte
 				@args.push @modrm.register_or_memory
 				decode_immediate_16or32
 			when 3
 				@func = "neg"
-				@size = multi_byte
-				@modrm.operand_size = multi_byte
 				encode_value 0
+				@args.push @modrm.register_or_memory
+			when 6
+				@func = "div"
 				@args.push @modrm.register_or_memory
 			else
 				raise "opcode extension not implemented for opcode 0xF7: %d" % @modrm.opcode_ext
@@ -701,6 +701,22 @@ class Instruction
 			execute
 			@func = 'add'
 			execute
+		when 'div'
+			"div not implemented for size = 1" if @size == 1
+			rax = Pointer.new(@cpu.register[0], 0, @size)
+			rdx = Pointer.new(@cpu.register[2], 0, @size)
+			dividend = (256 ** @size) * rdx.read_int + rax.read_int
+			divisor = @args[0].read_int
+			if divisor == 0
+				raise "divide error exception: divisor = 0"
+			end
+			quotient = dividend / divisor
+			remainder = dividend % divisor
+			if quotient >= 256 ** @size
+				raise "divide error exception: quotient too big: %d (dec) / %x (hex)" % [quotient, quotient]
+			end
+			rax.write_int quotient
+			rdx.write_int remainder
 		when "rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"
 			times = @args[1].read_int % (2 ** @size)
 			bit_array = @args[0].read_bit_array
