@@ -2,10 +2,11 @@ require_relative "addressable"
 require_relative "pointer"
 
 class ConstBuffer < Addressable
-	def initialize(value)
+	def initialize(value, size = 8)
 		@in_init = true
+		@size = size
 		super()
-		Pointer.new(self, 0, 8).write_int(value)
+		Pointer.new(self, 0, size).write_int(value)
 		@name = "const"
 		@in_init = false
 	end
@@ -19,6 +20,6 @@ class ConstBuffer < Addressable
 	end
 	
 	def ptr
-		return Pointer.new(self, 0, 8)
+		return Pointer.new(self, 0, @size)
 	end
 end

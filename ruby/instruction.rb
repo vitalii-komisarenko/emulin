@@ -478,8 +478,9 @@ class Instruction
 		decode_immediate(size)
 	end
 	
-	def encode_value(value)
-		@args.push ConstBuffer.new(value).ptr
+	def encode_value(value, size = @size)
+		size = size.nil? ? 8 : size
+		@args.push ConstBuffer.new(value, size).ptr
 	end
 	
 	def decode_relative_address(size)
