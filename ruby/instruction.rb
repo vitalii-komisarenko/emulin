@@ -268,6 +268,12 @@ class Instruction
 				@modrm.operand_size = multi_byte
 				@args.push @modrm.register_or_memory
 				decode_immediate_16or32
+			when 3
+				@func = "neg"
+				@size = multi_byte
+				@modrm.operand_size = multi_byte
+				encode_value 0
+				@args.push @modrm.register_or_memory
 			else
 				raise "opcode extension not implemented for opcode 0xF7: %d" % @modrm.opcode_ext
 			end
@@ -675,13 +681,13 @@ class Instruction
 
 			update_flags("...sz.p.", value, @args[0].size)
 			# TODO: @cpu.flags.a
-		when 'sub', 'sbb', 'cmp', 'dec'
+		when 'sub', 'sbb', 'cmp', 'dec', 'neg'
 			highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
 			highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
 
 			cf = ((@func == 'sbb') && @cpu.flags.c) ? 1 : 0
 			value = @args[0].read_int - @args[1].read_signed - cf
-			@args[0].write_int(value) unless @func == 'cmp'
+			@args[@func == 'neg' ? 1 : 0].write_int(value) unless @func == 'cmp'
 			update_flags("...sz.p.", value, @args[0].size)
 
 			@cpu.flags.c = value < 0 unless @func == "dec"
