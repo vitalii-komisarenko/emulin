@@ -247,6 +247,18 @@ class Instruction
 			@func = @modrm.opcode_ext == 0 ? "inc" : "dec"
 			@args.push @modrm.register_or_memory
 			encode_value 1
+		when 0xF7
+			parse_modrm
+			case @modrm.opcode_ext
+			when 0, 1
+				@func = "test"
+				@size = multi_byte
+				@modrm.operand_size = multi_byte
+				@args.push @modrm.register_or_memory
+				decode_immediate_16or32
+			else
+				raise "opcode extension not implemented for opcode 0xF7: %d" % @modrm.opcode_ext
+			end
 		when 0xFF
 			parse_modrm
 			case @modrm.opcode_ext
