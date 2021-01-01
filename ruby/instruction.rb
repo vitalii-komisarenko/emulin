@@ -422,7 +422,7 @@ class Instruction
 				encode_accumulator
 				decode_immediate_16or32
 			elsif @@no_args_opcodes.key? @opcode
-				@func = @@reg_regmem_opcodes[@opcode]
+				@func = @@no_args_opcodes[@opcode]
 			elsif @@mm_xmm_reg_regmem_opcodes.key? @opcode
 				# TODO: add support of VEX/EVEX
 				arr = @@mm_xmm_reg_regmem_opcodes[@opcode]
@@ -737,6 +737,8 @@ class Instruction
 			ah += @cpu.flags.z ? 64 : 0
 			ah += @cpu.flags.s ? 128 : 0
 			@cpu.register[0].write(1, [ah])
+		when 'cpuid'
+			# Do nothing
 		when 'cmc' # Complement Carry Flag
 			@cpu.flags.c = !@cpu.flags.c
 		when 'clc', # Clear Carry Flag
@@ -1051,6 +1053,7 @@ class Instruction
 		0xFB => 'sti', # Set Interrupt Flag
 		0xFC => 'cld', # Clear Direction Flag
 		0xFD => 'std', # Set Direction Flag
+		0x0FA2 => 'cpuid',
 	}
 end
 
