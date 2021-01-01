@@ -728,7 +728,7 @@ class Instruction
 					@cpu.flags.o = (@func == "shr" ? orig_highest_bit : 0) if times == 1
 					@args[0].write_bit_array bit_array
 				when "shl", "sal"
-					bit_array.shift 0
+					bit_array.unshift 0
 					@cpu.flags.c = bit_array.pop == 1
 					@cpu.flags.o = @cpu.flags.c != (bit_array[-1] == 1) if times == 1
 					@args[0].write_bit_array bit_array

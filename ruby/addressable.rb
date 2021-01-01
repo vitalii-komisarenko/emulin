@@ -31,13 +31,15 @@ class Addressable
 	
 	def write_bit_array(pos, bitarray)
 		raise "Bit array does not map to byte array" unless bitarray.length % 8 == 0
-		byte_arr = bitarray.each_slice(8)
-		for i in 0..(byte_arr.length-1)
-			item = byte_arr[i]
+		arr_of_bit_arr = *bitarray.each_slice(8)
+		byte_arr = []
+		for i in 0..(arr_of_bit_arr.length-1)
+			item = arr_of_bit_arr[i]
 			byte = item[0] + 2 * item[1] + 4 * item[2] + 8 * item[3] +
 				16 * item[4] + 32 * item[5] + 64 * item[6] + 127 * item[7]
-			write(pos + i, [byte])
+			byte_arr.push byte
 		end
+		write(pos, byte_arr)
 	end
 	
 	def read_int(pos, size)
