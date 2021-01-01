@@ -280,8 +280,8 @@ class Instruction
 				@modrm.operand_size = multi_byte
 				@args.push @modrm.register_or_memory
 				encode_value 1
-			when 4
-				@func = "jmp"
+			when 2, 4
+				@func = @opcode == 4 ? "jmp" : "call"
 				# TODO: unspecified behaviour for 16 and 32-bit operands
 				@size = multi_byte
 				@modrm.operand_size = multi_byte
