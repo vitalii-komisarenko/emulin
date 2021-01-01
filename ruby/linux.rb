@@ -21,6 +21,8 @@ class Linux
 			else
 				raise "not implemented fd: %d" % fd
 			end
+		when 12 # brk
+			syscall_return_int 0
 		when 60 # exit
 			puts "exit code: %d" % args[0]
 			@cpu.stopped = true
