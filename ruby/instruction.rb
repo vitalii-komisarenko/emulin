@@ -341,6 +341,14 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.mm_or_xmm_register
 			@args.push @modrm.mm_or_xmm_register_or_memory
+		when 0x0F6E
+			@func = "movq"
+			@size = mm_or_xmm_operand_size
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register
+			@size = @prefix.rex_w ? 8 : 4
+			@modrm.operand_size = @size
+			@args.push @modrm.register_or_memory
 		when 0x0F6F
 			# TODO: add support of VEX/EVEX
 			@func = "mov"
