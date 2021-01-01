@@ -1155,16 +1155,11 @@ class ModRM_Parser
 	end
 	
 	def disp32
-		b1 = @stream.read
-		b2 = @stream.read
-		b3 = @stream.read
-		b4 = @stream.read
-		
-		return (256 ** 3) * (b4 - 0x80) + (256 ** 2) * b3 + 256 * b2 + b1
+		return @stream.read_pointer(4).read_signed
 	end
 	
 	def disp8
-		return @stream.read - 0x80
+		return @stream.read_pointer(1).read_signed
 	end
 	
 	def sib
