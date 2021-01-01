@@ -717,6 +717,19 @@ class Instruction
 			end
 			rax.write_int quotient
 			rdx.write_int remainder
+		when 'imul'
+			case @args.length
+			when 1
+				raise "not implemented"
+			when 2
+				@args = [@args[0]] + @args
+			when 3
+				# do nothing
+			end
+			value = @args[1].read_signed * @args[2].read_signed
+			@args[0].write_int value
+			@cpu.flags.c = (value < -(2**(8*@size-1)) || (value >= 2**(8*@size-1)))
+			@cpu.flags.o = @cpu.flags.c
 		when "rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"
 			times = @args[1].read_int % (2 ** @size)
 			bit_array = @args[0].read_bit_array
@@ -1025,6 +1038,7 @@ class Instruction
 		0x8D => ['lea', 0, 0],
 		0x0FC0 => ['xadd', 1, 0],
 		0x0FC1 => ['xadd', 0, 0],
+		0x0FAF => ['imul', 0, 0],
 	}
 	
 	@@mm_xmm_reg_regmem_opcodes = {
