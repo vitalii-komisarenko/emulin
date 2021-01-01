@@ -4,6 +4,10 @@ class Linux
 		@mem = mem
 	end
 	
+	def syscall_return_int(value)
+		Pointer.new(@cpu.register[0], 0, 8).write_int value
+	end
+
 	def handle_syscall(number, args)
 		case number
 		when 1 # write
@@ -13,14 +17,15 @@ class Linux
 			if fd == 1 # stdout
 				data = @mem.read(pos, size)
 				print data.pack("C*")
-				# return buffer size that was stored in %rdx
-				@cpu.register[0].write(0, @cpu.register[2].read(0, 8))
+				syscall_return_int size
 			else
 				raise "not implemented fd: %d" % fd
 			end
 		when 60 # exit
 			puts "exit code: %d" % args[0]
 			@cpu.stopped = true
+		when 102, 104, 107, 108 # getuid, getgid, geteuid, getegid
+			syscall_return_int 1000 # default UID of the first user on Ubuntu
 		else
 			raise "syscall not implemented: %d (0x%x)" % [number, number]
 		end
