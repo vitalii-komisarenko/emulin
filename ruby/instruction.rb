@@ -437,8 +437,6 @@ class Instruction
 
 				encode_accumulator
 				decode_immediate_16or32
-			elsif @@no_args_opcodes.key? @opcode
-				@func = @@no_args_opcodes[@opcode]
 			elsif @@mm_xmm_reg_regmem_opcodes.key? @opcode
 				# TODO: add support of VEX/EVEX
 				arr = @@mm_xmm_reg_regmem_opcodes[@opcode]
@@ -456,9 +454,10 @@ class Instruction
 				@args.push modrm.mm_or_xmm_register
 				@args.push modrm.mm_or_xmm_register_or_memory
 			elsif @@unified_opcode_table.key? @opcode
-				arr = @@mm_xmm_reg_regmem_opcodes_signed[@opcode]
+				arr = @@unified_opcode_table[@opcode]
 				@func = arr[0]
-				for task in arr[1..-1]
+				tasks = arr[1..-1].nil? ? [] : arr[1..-1]
+				for task in tasks
 					case task
 					when "size=1"
 						@size = 1
@@ -1137,6 +1136,8 @@ class Instruction
 	}
 
 	@@unified_opcode_table = {
+		0x9E => ['sahf'],
+		0x9F => ['lahf'],
 		0xA4 => ["movs", "size=1"],
 		0xA5 => ["movs", "size=2/4/8"],
 		0xA6 => ["cmps", "size=1"],
@@ -1149,19 +1150,14 @@ class Instruction
 		0xAD => ["lods", "size=2/4/8"],
 		0xAE => ["scas", "size=1"],
 		0xAF => ["scas", "size=2/4/8"],
-	}
-	
-	@@no_args_opcodes = {
-		0x9E => 'sahf',# Store AH into Flags
-		0x9F => 'lahf',# Load Status Flags into AH Register
-		0xF5 => 'cmc', # Complement Carry Flag
-		0xF8 => 'clc', # Clear Carry Flag
-		0xF9 => 'stc', # Set Carry Flag
-		0xFA => 'cli', # Clear Interrupt Flag
-		0xFB => 'sti', # Set Interrupt Flag
-		0xFC => 'cld', # Clear Direction Flag
-		0xFD => 'std', # Set Direction Flag
-		0x0FA2 => 'cpuid',
+		0xF5 => ['cmc'],
+		0xF8 => ['clc'],
+		0xF9 => ['stc'],
+		0xFA => ['cli'],
+		0xFB => ['sti'],
+		0xFC => ['cld'],
+		0xFD => ['std'],
+		0x0FA2 => ['cpuid'],
 	}
 end
 
