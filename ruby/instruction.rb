@@ -159,17 +159,6 @@ class Instruction
 			@size = multi_byte
 			decode_register_from_opcode
 			decode_immediate
-		when 0xC0, 0xC1, 0xD0..0xD3
-			@size = @opcode % 2 == 0 ? 1 : multi_byte
-			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
-			@args = [ modrm.register_or_memory ]
-			if [0xC0, 0xC1].include? @opcode
-				decode_immediate 1
-			elsif [0xD0, 0xD1].key? @opcode
-				encode_value 1
-			else
-				encode_value(@cpu.flags.c ? 1 : 0)
-			end
 		when 0xC3
 			@func = "retn"
 			encode_value 0
@@ -453,7 +442,13 @@ class Instruction
 				@args.push modrm.mm_or_xmm_register_or_memory
 			elsif @@unified_opcode_table.key? @opcode
 				arr = @@unified_opcode_table[@opcode]
+
 				@func = arr[0]
+				case @func
+				when "#ROTATE/SHIFT"
+					@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
+				end
+
 				tasks = arr[1..-1].nil? ? [] : arr[1..-1]
 				for task in tasks
 					case task
@@ -461,15 +456,29 @@ class Instruction
 						@size = 1
 					when "size=2/4/8"
 						@size = multi_byte
+					when "r/m"
+						@args.push modrm.register_or_memory
 					when "acc"
 						encode_accumulator
 					when "imm"
 						decode_immediate
+					when "imm1"
+						decode_immediate 1
 					when "imm2/4"
 						decode_immediate_16or32
+					when "const=1"
+						encode_value 1
+					when "carry flag"
+						encode_value(@cpu.flags.c ? 1 : 0)
 					else
 						raise "unknown task: %s"
 					end
+
+					# Currently ModR/M gets operand size on its first initalization
+					# But in case of @func names like "#ROTATE/SHIFT" it is initalized
+					# before size is set.
+					# Workaround: update its size on each iteration
+					@modrm.operand_size = @size unless @modrm.nil?
 				end
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
@@ -1134,8 +1143,14 @@ class Instruction
 	}
 
 	@@unified_opcode_table = {
-		0x9E => ['sahf'],
-		0x9F => ['lahf'],
+		0x9E => ["sahf"],
+		0x9F => ["lahf"],
+		0xC0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "imm1"],
+		0xC1 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "imm1"],
+		0xD0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "const=1"],
+		0xD1 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "const=1"],
+		0xD2 => ["#ROTATE/SHIFT", "size=1",     "r/m", "carry flag"],
+		0xD3 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "carry flag"],
 		0xA4 => ["movs", "size=1"],
 		0xA5 => ["movs", "size=2/4/8"],
 		0xA6 => ["cmps", "size=1"],
