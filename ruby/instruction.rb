@@ -411,21 +411,7 @@ class Instruction
 			@args.push modrm.register_or_memory
 			encode_value(condition_is_met(@opcode % 16) ? 1 : 0)
 		else
-			if @@reg_regmem_opcodes.key? @opcode
-				arr = @@reg_regmem_opcodes[@opcode]
-				@func = arr[0]
-				is8bit = arr[1] == 1
-				direction_bit = arr[2] == 1
-
-				@size = is8bit ? 1 : multi_byte
-				
-				
-				@args.push modrm.register
-				@args.push modrm.register_or_memory
-				if direction_bit
-					@args[0], @args[1] = @args[1], @args[0]
-				end
-			elsif @@mm_xmm_reg_regmem_opcodes.key? @opcode
+			if @@mm_xmm_reg_regmem_opcodes.key? @opcode
 				# TODO: add support of VEX/EVEX
 				arr = @@mm_xmm_reg_regmem_opcodes[@opcode]
 				@func = arr[0]
@@ -1035,25 +1021,7 @@ class Instruction
 	def jump(pos)
 		@cpu.rip = pos.read_int
 	end
-	
-	@@reg_regmem_opcodes = {
-		# format: opcode => [operation, is8bit, direction_bit]
-		0x84 => ['test', 1, nil],
-		0x85 => ['test', 0, nil],
-		0x86 => ['xchg', 1, nil],
-		0x87 => ['xchg', 0, nil],
-		0x88 => ['mov', 1, 1],
-		0x89 => ['mov', 0, 1],
-		0x8A => ['mov', 1, 0],
-		0x8B => ['mov', 0, 0],
-		0x8D => ['lea', 0, 0],
-		0x0FC0 => ['xadd', 1, 0],
-		0x0FC1 => ['xadd', 0, 0],
-		0x0FAF => ['imul', 0, 0],
-		0x0FBC => ['bsf', 0, 0],
-		0x0FBD => ['bsr', 0, 0],
-	}
-	
+
 	@@mm_xmm_reg_regmem_opcodes = {
 		# format: opcode => [operation, item size]
 		0x0F60 => ['punpckl', 1],
@@ -1095,23 +1063,24 @@ class Instruction
 	}
 
 	@@unified_opcode_table = {
-		0x69 => ["imul", "size=2/4/8", "r", "r/m", "imm2/4"],
-		0x6B => ["imul", "size=2/4/8", "r", "r/m", "imm1"],
+		0x69 => ["imul", "size=2/4/8", "r",   "r/m", "imm2/4"],
+		0x6B => ["imul", "size=2/4/8", "r",   "r/m", "imm1"],
+		0x84 => ['test', "size=1",     "r/m", "r"],
+		0x85 => ['test', "size=2/4/8", "r/m", "r"],
+		0x86 => ['xchg', "size=1",     "r",   "r/m"],
+		0x87 => ['xchg', "size=2/4/8", "r",   "r/m"],
+		0x88 => ['mov',  "size=1",     "r/m", "r"],
+		0x89 => ['mov',  "size=2/4/8", "r/m", "r"],
+		0x8A => ['mov',  "size=1",     "r",   "r/m"],
+		0x8B => ['mov',  "size=2/4/8", "r",   "r/m"],
+		0x8D => ['lea',  "size=2/4/8", "r",   "r/m"],
 		0x9E => ["sahf"],
 		0x9F => ["lahf"],
-		0xA8 => ["test", "size=1",     "acc", "imm1"],
-		0xA9 => ["test", "size=2/4/8", "acc", "imm2/4"],
-		0xC0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "imm1"],
-		0xC1 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "imm1"],
-		0xD0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "const=1"],
-		0xD1 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "const=1"],
-		0xD2 => ["#ROTATE/SHIFT", "size=1",     "r/m", "carry flag"],
-		0xD3 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "carry flag"],
 		0xA4 => ["movs", "size=1"],
 		0xA5 => ["movs", "size=2/4/8"],
 		0xA6 => ["cmps", "size=1"],
 		0xA7 => ["cmps", "size=2/4/8"],
-		0xA8 => ["test", "size=1", "acc", "imm"],
+		0xA8 => ["test", "size=1",     "acc", "imm1"],
 		0xA9 => ["test", "size=2/4/8", "acc", "imm2/4"],
 		0xAA => ["stos", "size=1"],
 		0xAB => ["stos", "size=2/4/8"],
@@ -1119,6 +1088,12 @@ class Instruction
 		0xAD => ["lods", "size=2/4/8"],
 		0xAE => ["scas", "size=1"],
 		0xAF => ["scas", "size=2/4/8"],
+		0xC0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "imm1"],
+		0xC1 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "imm1"],
+		0xD0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "const=1"],
+		0xD1 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "const=1"],
+		0xD2 => ["#ROTATE/SHIFT", "size=1",     "r/m", "carry flag"],
+		0xD3 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "carry flag"],
 		0xF5 => ['cmc'],
 		0xF8 => ['clc'],
 		0xF9 => ['stc'],
@@ -1128,6 +1103,11 @@ class Instruction
 		0xFD => ['std'],
 		0x0F05 => ["syscall"],
 		0x0FA2 => ['cpuid'],
+		0x0FAF => ['imul', "size=2/4/8", "r",   "r/m"],
+		0x0FBC => ['bsf',  "size=2/4/8", "r",   "r/m"],
+		0x0FBD => ['bsr',  "size=2/4/8", "r",   "r/m"],
+		0x0FC0 => ['xadd', "size=1",     "r/m", "r"],
+		0x0FC1 => ['xadd', "size=2/4/8", "r/m", "r"],
 	}
 end
 
