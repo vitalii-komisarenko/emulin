@@ -256,8 +256,6 @@ class Instruction
 			else
 				raise "opcode extension not implemented for opcode 0xFF: %d" % modrm.opcode_ext
 			end
-		when 0x0F05
-			@func = "syscall"
 		when 0x0F10..0x0F11
 			if @prefix.operand_size_overridden || @prefix.repe || @prefix.repne
 				raise "not implemented"
@@ -1157,6 +1155,7 @@ class Instruction
 		0xFB => ['sti'],
 		0xFC => ['cld'],
 		0xFD => ['std'],
+		0x0F05 => ["syscall"],
 		0x0FA2 => ['cpuid'],
 	}
 end
