@@ -104,10 +104,9 @@ class Instruction
 		when 0x63
 			@func = "movsxd"
 			@size = multi_byte
-			parse_modrm
-			@args.push @modrm.register
-			@modrm.operand_size = [4, @modrm.operand_size].min
-			@args.push @modrm.register_or_memory
+			@args.push modrm.register
+			modrm.operand_size = [4, modrm.operand_size].min
+			@args.push modrm.register_or_memory
 		when 0x68, 0x6A
 			@func = "push"
 			@size = @opcode == 0x68 ? multi_byte : 1
@@ -115,17 +114,15 @@ class Instruction
 		when 0x0FBE..0x0FBF
 			@func = "movsx"
 			@size = multi_byte
-			parse_modrm
-			@args.push @modrm.register
-			@modrm.operand_size = @opcode == 0x0FBE ? 1 : 2
-			@args.push @modrm.register_or_memory
+			@args.push modrm.register
+			modrm.operand_size = @opcode == 0x0FBE ? 1 : 2
+			@args.push modrm.register_or_memory
 		when 0x0FB6..0x0FB7
 			@func = "movzx"
 			@size = multi_byte
-			parse_modrm
-			@args.push @modrm.register
-			@modrm.operand_size = @opcode == 0x0FB6 ? 1 : 2
-			@args.push @modrm.register_or_memory
+			@args.push modrm.register
+			modrm.operand_size = @opcode == 0x0FB6 ? 1 : 2
+			@args.push modrm.register_or_memory
 		when 0x70..0x7F
 			@func = "jmp"
 			@cond = @opcode % 16
@@ -137,9 +134,8 @@ class Instruction
 			decode_relative_address 4
 		when 0x80, 0x81, 0x83
 			@size = @opcode == 0x80 ? 1 : multi_byte
-			parse_modrm
-			@func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][@modrm.opcode_ext]
-			@args = [ @modrm.register_or_memory ]
+			@func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
+			@args = [ modrm.register_or_memory ]
 
 			if @opcode == 0x81
 				decode_immediate_16or32
@@ -205,9 +201,8 @@ class Instruction
 			decode_immediate
 		when 0xC0, 0xC1, 0xD0..0xD3
 			@size = @opcode % 2 == 0 ? 1 : multi_byte
-			parse_modrm
-			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][@modrm.opcode_ext]
-			@args = [ @modrm.register_or_memory ]
+			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
+			@args = [ modrm.register_or_memory ]
 			if [0xC0, 0xC1].include? @opcode
 				decode_immediate 1
 			elsif [0xD0, 0xD1].key? @opcode
@@ -221,16 +216,14 @@ class Instruction
 		when 0xC6
 			@func = "mov"
 			@size = 1
-			parse_modrm
-			unspecified_opcode_extension unless @modrm.opcode_ext == 0
-			@args.push @modrm.register_or_memory
+			unspecified_opcode_extension unless modrm.opcode_ext == 0
+			@args.push modrm.register_or_memory
 			decode_immediate
 		when 0xC7
 			@func = "mov"
 			@size = multi_byte
-			parse_modrm
-			unspecified_opcode_extension unless @modrm.opcode_ext == 0
-			@args.push @modrm.register_or_memory
+			unspecified_opcode_extension unless modrm.opcode_ext == 0
+			@args.push modrm.register_or_memory
 			decode_immediate_16or32
 		when 0xE0..0xE2
 			@func = ["loopnz", "loopz", "loop"][@opcode - 0xE0]
@@ -253,59 +246,55 @@ class Instruction
 			decode_relative_address 1
 		when 0xFE
 			@size = 1
-			parse_modrm
-			unspecified_opcode_extension unless [0, 1].include? @modrm.opcode_ext
-			@func = @modrm.opcode_ext == 0 ? "inc" : "dec"
-			@args.push @modrm.register_or_memory
+			unspecified_opcode_extension unless [0, 1].include? modrm.opcode_ext
+			@func = modrm.opcode_ext == 0 ? "inc" : "dec"
+			@args.push modrm.register_or_memory
 			encode_value 1
 		when 0xF6
-			parse_modrm
-			case @modrm.opcode_ext
+			case modrm.opcode_ext
 			when 0, 1
 				@func = "test"
 				@size = 1
-				@modrm.operand_size = 1
-				@args.push @modrm.register_or_memory
+				modrm.operand_size = 1
+				@args.push modrm.register_or_memory
 				decode_immediate_16or32
 			else
-				raise "opcode extension not implemented for opcode 0xF6: %d" % @modrm.opcode_ext
+				raise "opcode extension not implemented for opcode 0xF6: %d" % modrm.opcode_ext
 			end
 		when 0xF7
 			@size = multi_byte
-			parse_modrm
-			case @modrm.opcode_ext
+			case modrm.opcode_ext
 			when 0, 1
 				@func = "test"
-				@args.push @modrm.register_or_memory
+				@args.push modrm.register_or_memory
 				decode_immediate_16or32
 			when 3
 				@func = "neg"
 				encode_value 0
-				@args.push @modrm.register_or_memory
+				@args.push modrm.register_or_memory
 			when 6
 				@func = "div"
-				@args.push @modrm.register_or_memory
+				@args.push modrm.register_or_memory
 			else
-				raise "opcode extension not implemented for opcode 0xF7: %d" % @modrm.opcode_ext
+				raise "opcode extension not implemented for opcode 0xF7: %d" % modrm.opcode_ext
 			end
 		when 0xFF
-			parse_modrm
-			case @modrm.opcode_ext
+			case modrm.opcode_ext
 			when 0, 1
-				@func = @modrm.opcode_ext == 0 ? "inc" : "dec"
+				@func = modrm.opcode_ext == 0 ? "inc" : "dec"
 				@size = multi_byte
-				@modrm.operand_size = multi_byte
-				@args.push @modrm.register_or_memory
+				modrm.operand_size = multi_byte
+				@args.push modrm.register_or_memory
 				encode_value 1
 			when 2, 4
 				@func = @opcode == 4 ? "jmp" : "call"
 				# TODO: unspecified behaviour for 16 and 32-bit operands
 				@size = multi_byte
-				@modrm.operand_size = multi_byte
-				ptr = @modrm.register_or_memory
+				modrm.operand_size = multi_byte
+				ptr = modrm.register_or_memory
 				encode_value ptr.read_int
 			else
-				raise "opcode extension not implemented for opcode 0xFF: %d" % @modrm.opcode_ext
+				raise "opcode extension not implemented for opcode 0xFF: %d" % modrm.opcode_ext
 			end
 		when 0x0F05
 			@func = "syscall"
@@ -315,51 +304,44 @@ class Instruction
 			end
 			@func = "mov"
 			@size = 16
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
-			@args.push @modrm.mm_or_xmm_register_or_memory
+			@args.push modrm.mm_or_xmm_register
+			@args.push modrm.mm_or_xmm_register_or_memory
 			@args = [@args[1], @args[0]] if @opcode == 0x0F11
 		when 0x0F19..0x0F1F
 			@size = multi_byte == 8 ? 4 : multi_byte
-			parse_modrm
-			@func = (@opcode == 0x0F1F) && (@modrm.opcode_ext == 0) ? "nop" : "hint_nop"
-			@args.push @modrm.register_or_memory
+			@func = (@opcode == 0x0F1F) && (modrm.opcode_ext == 0) ? "nop" : "hint_nop"
+			@args.push modrm.register_or_memory
 		when 0x0F28
 			@func = "movap"
 			@size = 16
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
-			@args.push @modrm.mm_or_xmm_register_or_memory
+			@args.push modrm.mm_or_xmm_register
+			@args.push modrm.mm_or_xmm_register_or_memory
 		when 0x0F29
 			@func = "movap"
 			@size = 16
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register_or_memory
-			@args.push @modrm.mm_or_xmm_register
+			@args.push modrm.mm_or_xmm_register_or_memory
+			@args.push modrm.mm_or_xmm_register
 		when 0x0F40..0x0F4F
 			@func = "mov"
 			@cond = @opcode % 16
 			@size = multi_byte
-			parse_modrm
-			@args.push @modrm.register
-			@args.push @modrm.register_or_memory
+			@args.push modrm.register
+			@args.push modrm.register_or_memory
 		when 0x0F6C, 0x0F6D
 			# TODO: add support of VEX/EVEX
 			@func = @opcode == 0x0F6C ? "punpckl" : "punpckh"
 			raise "missing operand-size override prefix" unless @prefix.operand_size_overridden
 			@size = 16
 			@xmm_item_size = 8
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
-			@args.push @modrm.mm_or_xmm_register_or_memory
+			@args.push modrm.mm_or_xmm_register
+			@args.push modrm.mm_or_xmm_register_or_memory
 		when 0x0F6E
 			@func = "movq"
 			@size = mm_or_xmm_operand_size
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
+			@args.push modrm.mm_or_xmm_register
 			@size = @prefix.rex_w ? 8 : 4
-			@modrm.operand_size = @size
-			@args.push @modrm.register_or_memory
+			modrm.operand_size = @size
+			@args.push modrm.register_or_memory
 		when 0x0F6F
 			# TODO: add support of VEX/EVEX
 			@func = "mov"
@@ -368,9 +350,8 @@ class Instruction
 				@size = 16
 			end
 			@xmm_item_size = 1
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
-			@args.push @modrm.mm_or_xmm_register_or_memory
+			@args.push modrm.mm_or_xmm_register
+			@args.push modrm.mm_or_xmm_register_or_memory
 		when 0x0F70
 			# TODO: add support of VEX/EVEX
 			# Note that VEX/EVEX versions clear some high bits
@@ -392,34 +373,31 @@ class Instruction
 				@size = 16
 				@xmm_item_size = 4
 			end
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
-			@args.push @modrm.mm_or_xmm_register_or_memory
+			@args.push modrm.mm_or_xmm_register
+			@args.push modrm.mm_or_xmm_register_or_memory
 			decode_immediate 1
 		when 0x0F72
 			@size = mm_or_xmm_operand_size
-			parse_modrm
-			case @modrm.opcode_ext
+			case modrm.opcode_ext
 			when 2,4
 				raise "opcode extension not implemented"
 			when 6
 				@func = "psll"
 				@xmm_item_size = 4
-				@args.push @modrm.mm_or_xmm_register_or_memory
+				@args.push modrm.mm_or_xmm_register_or_memory
 				decode_immediate 1
 			else
 				unspecified_opcode_extension
 			end
 		when 0x0F73
 			@size = mm_or_xmm_operand_size
-			parse_modrm
-			case @modrm.opcode_ext
+			case modrm.opcode_ext
 			when 2
 				raise "not implemented"
 			when 6
 				@func = "psll"
 				@xmm_item_size = 8
-				@args.push @modrm.mm_or_xmm_register_or_memory
+				@args.push modrm.mm_or_xmm_register_or_memory
 				decode_immediate 1
 			when 3, 7
 				# TODO: verify that prefix 66 exists
@@ -433,11 +411,10 @@ class Instruction
 			raise "not implemented" unless @prefix.repe
 			@size = 16 # It is a workaround. ModR/M uses size to distinguish
 			           # MMX and XMM registers
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register
+			@args.push modrm.mm_or_xmm_register
 			@args[0].size = 8 # fix size
-			@args.push @modrm.mm_or_xmm_register_or_memory
-			if @modrm.mode == 0x3 # points to a register
+			@args.push modrm.mm_or_xmm_register_or_memory
+			if modrm.mode == 0x3 # points to a register
 				@args[1].size = 16 # fix size
 			else
 				@args[1].size = 8 # fix size
@@ -445,41 +422,36 @@ class Instruction
 		when 0x0F7F
 			@func = "mov"
 			@size = (@prefix.operand_size_overridden || @prefix.repe) ? 16 : 8
-			parse_modrm
-			@args.push @modrm.mm_or_xmm_register_or_memory
-			@args.push @modrm.mm_or_xmm_register
+			@args.push modrm.mm_or_xmm_register_or_memory
+			@args.push modrm.mm_or_xmm_register
 		when 0x0FD6
 			# TODO: add support of VEX/EVEX
 			raise "not implemented" unless @prefix.operand_size_overridden
 			@func = "movq"
 			@size = 8
-			parse_modrm
-			@args.push @modrm.xmm_register_or_memory
-			@args.push @modrm.xmm_register
-			if @modrm.mode == 0x3 # points to a register
+			@args.push modrm.xmm_register_or_memory
+			@args.push modrm.xmm_register
+			if modrm.mode == 0x3 # points to a register
 				@args[1].size = 16 # to clear highest bits of the XMM register
 			end
 		when 0x0FD7
 			@func = "pmovmsk"
 			@size = 4
-			parse_modrm
-			@args.push @modrm.register
+			@args.push modrm.register
 			@size = mm_or_xmm_operand_size
-			@modrm.operand_size = @size
-			@args.push @modrm.mm_or_xmm_register_or_memory
+			modrm.operand_size = @size
+			@args.push modrm.mm_or_xmm_register_or_memory
 		when 0x0FF0
 			raise "F2 prefix expected" unless @prefix.repne
 			@func = "mov"
 			@size = 16
-			parse_modrm
-			@args.push @modrm.xmm_register
-			raise "register expected, but ModR/M mode is not 0b11" unless @modrm.mode != 3
-			@args.push @modrm.xmm_register_or_memory
+			@args.push modrm.xmm_register
+			raise "register expected, but ModR/M mode is not 0b11" unless modrm.mode != 3
+			@args.push modrm.xmm_register_or_memory
 		when 0x0F90..0x0F9F
 			@func = "set"
 			@size = 1
-			parse_modrm
-			@args.push @modrm.register_or_memory
+			@args.push modrm.register_or_memory
 			encode_value(condition_is_met(@opcode % 16) ? 1 : 0)
 		else
 			if @@reg_regmem_opcodes.key? @opcode
@@ -490,10 +462,9 @@ class Instruction
 
 				@size = is8bit ? 1 : multi_byte
 				
-				parse_modrm
 				
-				@args.push @modrm.register
-				@args.push @modrm.register_or_memory
+				@args.push modrm.register
+				@args.push modrm.register_or_memory
 				if direction_bit
 					@args[0], @args[1] = @args[1], @args[0]
 				end
@@ -514,18 +485,16 @@ class Instruction
 				@func = arr[0]
 				@xmm_item_size = arr[1]
 				@size = mm_or_xmm_operand_size
-				parse_modrm
-				@args.push @modrm.mm_or_xmm_register
-				@args.push @modrm.mm_or_xmm_register_or_memory
+				@args.push modrm.mm_or_xmm_register
+				@args.push modrm.mm_or_xmm_register_or_memory
 			elsif @@mm_xmm_reg_regmem_opcodes_signed.key? @opcode
 				# TODO: add support of VEX/EVEX
 				arr = @@mm_xmm_reg_regmem_opcodes_signed[@opcode]
 				@func = arr[0]
 				@xmm_item_size = arr[1]
 				@size = mm_or_xmm_operand_size
-				parse_modrm
-				@args.push @modrm.mm_or_xmm_register
-				@args.push @modrm.mm_or_xmm_register_or_memory
+				@args.push modrm.mm_or_xmm_register
+				@args.push modrm.mm_or_xmm_register_or_memory
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
@@ -573,13 +542,18 @@ class Instruction
 		encode_value(@cpu.rip + rel)
 	end
 
+	def modrm
+		parse_modrm if @modrm.nil?
+		@modrm
+	end
+
 	def parse_modrm
 		address_size = @prefix.address_size_overridden ? 4 : 8
 		@modrm = ModRM_Parser.new(@stream, @prefix, @cpu, @size, address_size, segment_offset)
 	end
 
 	def unspecified_opcode_extension
-		raise "Unspecified opcode extension %d for opcode 0x%X" % [@modrm.opcode_ext, @opcode]
+		raise "Unspecified opcode extension %d for opcode 0x%X" % [modrm.opcode_ext, @opcode]
 	end
 
 	def max_address
@@ -667,7 +641,7 @@ class Instruction
 		when "ins", "movs", "outs", "lods", "stos", "cmps", "scas"
 			return execute_string_instruction
 		when "lea"
-			raise "LEA & register-direct addressing mode" if @modrm.mode == 0x03
+			raise "LEA & register-direct addressing mode" if modrm.mode == 0x03
 			@args[0].write_int @args[1].pos
 		when "mov", "set", "movap"
 			@args[0].write @args[1].read
