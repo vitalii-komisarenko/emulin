@@ -425,15 +425,6 @@ class Instruction
 				if direction_bit
 					@args[0], @args[1] = @args[1], @args[0]
 				end
-			elsif @@acc_imm_opcodes.key? @opcode
-				arr = @@acc_imm_opcodes[@opcode]
-
-				@func = arr[0]
-				is8bit = arr[1] == 1
-				@size = is8bit ? 1 : multi_byte
-
-				encode_accumulator
-				decode_immediate_16or32
 			elsif @@mm_xmm_reg_regmem_opcodes.key? @opcode
 				# TODO: add support of VEX/EVEX
 				arr = @@mm_xmm_reg_regmem_opcodes[@opcode]
@@ -1103,17 +1094,13 @@ class Instruction
 		0x0F66 => ['pcmpgt', 4],
 	}
 
-	@@acc_imm_opcodes = {
-		# format: opcode => [operation, is8bit]
-		0xA8 => ['test', 1],
-		0xA9 => ['test', 0],
-	}
-
 	@@unified_opcode_table = {
 		0x69 => ["imul", "size=2/4/8", "r", "r/m", "imm2/4"],
 		0x6B => ["imul", "size=2/4/8", "r", "r/m", "imm1"],
 		0x9E => ["sahf"],
 		0x9F => ["lahf"],
+		0xA8 => ["test", "size=1",     "acc", "imm1"],
+		0xA9 => ["test", "size=2/4/8", "acc", "imm2/4"],
 		0xC0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "imm1"],
 		0xC1 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "imm1"],
 		0xD0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "const=1"],
