@@ -456,6 +456,8 @@ class Instruction
 						@size = 1
 					when "size=2/4/8"
 						@size = multi_byte
+					when "r"
+						@args.push modrm.register
 					when "r/m"
 						@args.push modrm.register_or_memory
 					when "acc"
@@ -1143,6 +1145,8 @@ class Instruction
 	}
 
 	@@unified_opcode_table = {
+		0x69 => ["imul", "size=2/4/8", "r", "r/m", "imm2/4"],
+		0x6B => ["imul", "size=2/4/8", "r", "r/m", "imm1"],
 		0x9E => ["sahf"],
 		0x9F => ["lahf"],
 		0xC0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "imm1"],
