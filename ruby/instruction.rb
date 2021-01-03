@@ -93,6 +93,16 @@ class Instruction
 		@address_size = @prefix.address_size_overridden ? 4 : 8
 		
 		case @opcode
+		when 0x00..0x3F
+			raise "bad opcode: %02x" % @opcode if [6,7].include?(@opcode % 8)
+			funcs = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
+			params = [["size=1",     "r/m", "r"],
+			          ["size=2/4/8", "r/m", "r"],
+			          ["size=1",     "r",   "r/m"],
+			          ["size=2/4/8", "r",   "r/m"],
+			          ["size=1",     "acc", "imm1"],
+			          ["size=2/4/8", "acc", "imm2/4"]]
+			decode_arguments([funcs[modrm.opcode_ext]] + params[@opcode % 8])
 		when 0x50..0x57
 			@func = "push"
 			@size = multi_byte
@@ -1037,38 +1047,6 @@ class Instruction
 	
 	@@reg_regmem_opcodes = {
 		# format: opcode => [operation, is8bit, direction_bit]
-		0x00 => ['add', 1, 1],
-		0x01 => ['add', 0, 1],
-		0x02 => ['add', 1, 0],
-		0x03 => ['add', 0, 0],
-		0x08 => ['or', 1, 1],
-		0x09 => ['or', 0, 1],
-		0x0A => ['or', 1, 0],
-		0x0B => ['or', 0, 0],
-		0x10 => ['adc', 1, 1],
-		0x11 => ['adc', 0, 1],
-		0x12 => ['adc', 1, 0],
-		0x13 => ['adc', 0, 0],
-		0x18 => ['sbb', 1, 1],
-		0x19 => ['sbb', 0, 1],
-		0x1A => ['sbb', 1, 0],
-		0x1B => ['sbb', 0, 0],
-		0x20 => ['and', 1, 1],
-		0x21 => ['and', 0, 1],
-		0x22 => ['and', 1, 0],
-		0x23 => ['and', 0, 0],
-		0x28 => ['sub', 1, 1],
-		0x29 => ['sub', 0, 1],
-		0x2A => ['sub', 1, 0],
-		0x2B => ['sub', 0, 0],
-		0x30 => ['xor', 1, 1],
-		0x31 => ['xor', 0, 1],
-		0x32 => ['xor', 1, 0],
-		0x33 => ['xor', 0, 0],
-		0x38 => ['cmp', 1, 1],
-		0x39 => ['cmp', 0, 1],
-		0x3A => ['cmp', 1, 0],
-		0x3B => ['cmp', 0, 0],
 		0x84 => ['test', 1, nil],
 		0x85 => ['test', 0, nil],
 		0x86 => ['xchg', 1, nil],
@@ -1127,22 +1105,6 @@ class Instruction
 
 	@@acc_imm_opcodes = {
 		# format: opcode => [operation, is8bit]
-		0x04 => ['add', 1],
-		0x05 => ['add', 0],
-		0x0C => ['or', 1],
-		0x0D => ['or', 0],
-		0x14 => ['adc', 1],
-		0x15 => ['adc', 0],
-		0x1C => ['sbb', 1],
-		0x1D => ['sbb', 0],
-		0x24 => ['and', 1],
-		0x25 => ['and', 0],
-		0x2C => ['sub', 1],
-		0x2D => ['sub', 0],
-		0x34 => ['xor', 1],
-		0x35 => ['xor', 0],
-		0x3C => ['cmp', 1],
-		0x3D => ['cmp', 0],
 		0xA8 => ['test', 1],
 		0xA9 => ['test', 0],
 	}
