@@ -814,8 +814,8 @@ class Instruction
 				when "shr", "sar"
 					orig_highest_bit = bit_array[-1]
 					bit_array.push(@func == "shr" ? 0 : bit_array[-1])
-					@cpu.flags.c = bit_array.unshift == 1
-					@cpu.flags.o = (@func == "shr" ? orig_highest_bit : 0) if times == 1
+					@cpu.flags.c = bit_array.shift == 1
+					@cpu.flags.o = (@func == "shr" ? orig_highest_bit == 1 : false) if times == 1
 					@args[0].write_bit_array bit_array
 				when "shl", "sal"
 					bit_array.unshift 0
