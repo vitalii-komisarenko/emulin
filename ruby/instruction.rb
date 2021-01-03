@@ -442,52 +442,55 @@ class Instruction
 				@args.push modrm.mm_or_xmm_register_or_memory
 			elsif @@unified_opcode_table.key? @opcode
 				arr = @@unified_opcode_table[@opcode]
-
-				@func = arr[0]
-				case @func
-				when "#ROTATE/SHIFT"
-					@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
-				end
-
-				tasks = arr[1..-1].nil? ? [] : arr[1..-1]
-				for task in tasks
-					case task
-					when "size=1"
-						@size = 1
-					when "size=2/4/8"
-						@size = multi_byte
-					when "r"
-						@args.push modrm.register
-					when "r/m"
-						@args.push modrm.register_or_memory
-					when "acc"
-						encode_accumulator
-					when "imm"
-						decode_immediate
-					when "imm1"
-						decode_immediate 1
-					when "imm2/4"
-						decode_immediate_16or32
-					when "const=1"
-						encode_value 1
-					when "carry flag"
-						encode_value(@cpu.flags.c ? 1 : 0)
-					else
-						raise "unknown task: %s"
-					end
-
-					# Currently ModR/M gets operand size on its first initalization
-					# But in case of @func names like "#ROTATE/SHIFT" it is initalized
-					# before size is set.
-					# Workaround: update its size on each iteration
-					@modrm.operand_size = @size unless @modrm.nil?
-				end
+				decode_arguments arr
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
 		end
 	end
 	
+	def decode_arguments(arr)
+		@func = arr[0]
+		case @func
+		when "#ROTATE/SHIFT"
+			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
+		end
+
+		tasks = arr[1..-1].nil? ? [] : arr[1..-1]
+		for task in tasks
+			case task
+			when "size=1"
+				@size = 1
+			when "size=2/4/8"
+				@size = multi_byte
+			when "r"
+				@args.push modrm.register
+			when "r/m"
+				@args.push modrm.register_or_memory
+			when "acc"
+				encode_accumulator
+			when "imm"
+				decode_immediate
+			when "imm1"
+				decode_immediate 1
+			when "imm2/4"
+				decode_immediate_16or32
+			when "const=1"
+				encode_value 1
+			when "carry flag"
+				encode_value(@cpu.flags.c ? 1 : 0)
+			else
+				raise "unknown task: %s"
+			end
+
+			# Currently ModR/M gets operand size on its first initalization
+			# But in case of @func names like "#ROTATE/SHIFT" it is initalized
+			# before size is set.
+			# Workaround: update its size on each iteration
+			@modrm.operand_size = @size unless @modrm.nil?
+		end
+	end
+
 	def mm_or_xmm_operand_size
 		# TODO: add support of VEX/EVEX
 		return @prefix.operand_size_overridden ? 16 : 8
