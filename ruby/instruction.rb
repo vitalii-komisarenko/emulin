@@ -149,46 +149,6 @@ class Instruction
 			@size = multi_byte
 			encode_accumulator
 			decode_register_from_opcode
-		when 0xA4
-			@func = "movs"
-			@size = 1
-		when 0xA5
-			@func = "movs"
-			@size = multi_byte
-		when 0xA6
-			@func = "cmps"
-			@size = 1
-		when 0xA7
-			@func = "cmps"
-			@size = multi_byte
-		when 0xA8
-			@func = "test"
-			@size = 1
-			encode_accumulator
-			decode_immediate
-		when 0xA9
-			@func = "test"
-			@size = multi_byte
-			encode_accumulator
-			decode_immediate_16or32
-		when 0xAA
-			@func = "stos"
-			@size = 1
-		when 0xAB
-			@func = "stos"
-			@size = multi_byte
-		when 0xAC
-			@func = "lods"
-			@size = 1
-		when 0xAD
-			@func = "lods"
-			@size = multi_byte
-		when 0xAE
-			@func = "scas"
-			@size = 1
-		when 0xAF
-			@func = "scas"
-			@size = multi_byte
 		when 0xb0..0xb7
 			@func = "mov"
 			@size = 1
@@ -495,6 +455,25 @@ class Instruction
 				@size = mm_or_xmm_operand_size
 				@args.push modrm.mm_or_xmm_register
 				@args.push modrm.mm_or_xmm_register_or_memory
+			elsif @@unified_opcode_table.key? @opcode
+				arr = @@mm_xmm_reg_regmem_opcodes_signed[@opcode]
+				@func = arr[0]
+				for task in arr[1..-1]
+					case task
+					when "size=1"
+						@size = 1
+					when "size=2/4/8"
+						@size = multi_byte
+					when "acc"
+						encode_accumulator
+					when "imm"
+						decode_immediate
+					when "imm2/4"
+						decode_immediate_16or32
+					else
+						raise "unknown task: %s"
+					end
+				end
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
@@ -1155,6 +1134,21 @@ class Instruction
 		0x3D => ['cmp', 0],
 		0xA8 => ['test', 1],
 		0xA9 => ['test', 0],
+	}
+
+	@@unified_opcode_table = {
+		0xA4 => ["movs", "size=1"],
+		0xA5 => ["movs", "size=2/4/8"],
+		0xA6 => ["cmps", "size=1"],
+		0xA7 => ["cmps", "size=2/4/8"],
+		0xA8 => ["test", "size=1", "acc", "imm"],
+		0xA9 => ["test", "size=2/4/8", "acc", "imm2/4"],
+		0xAA => ["stos", "size=1"],
+		0xAB => ["stos", "size=2/4/8"],
+		0xAC => ["lods", "size=1"],
+		0xAD => ["lods", "size=2/4/8"],
+		0xAE => ["scas", "size=1"],
+		0xAF => ["scas", "size=2/4/8"],
 	}
 	
 	@@no_args_opcodes = {
