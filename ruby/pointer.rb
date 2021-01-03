@@ -101,6 +101,16 @@ class Pointer
 	def highest_bit
 		return highest_bit_set ? 1 : 0
 	end
+
+	def pointer_to_upper_half
+		raise "size is not even" unless @size % 2 == 0
+		return Pointer.new(@mem, @pos + @size / 2, @size / 2)
+	end
+
+	def pointer_to_lower_half
+		raise "size is not even" unless @size % 2 == 0
+		return Pointer.new(@mem, @pos, @size / 2)
+	end
 end
 
 class PointerSigned < Pointer

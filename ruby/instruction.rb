@@ -58,6 +58,17 @@ class InstructionPrefix
 			end
 		end
 	end
+
+	def simd_prefix
+		arr = []
+		arr.push 0x66 if @operand_size_overridden
+		arr.push 0xF2 if @repne
+		arr.push 0xF3 if @repe
+		if arr.length > 1
+			raise "only one SIMD prefix expected, but several provided: " + arr.map{|x| "%02X" % x}.join(", ")
+		end
+		return arr[0]
+	end
 end
 
 class Instruction
@@ -360,6 +371,31 @@ class Instruction
 			parse_modrm
 			@args.push @modrm.mm_or_xmm_register
 			@args.push @modrm.mm_or_xmm_register_or_memory
+		when 0x0F70
+			# TODO: add support of VEX/EVEX
+			# Note that VEX/EVEX versions clear some high bits
+			case @prefix.simd_prefix
+			when nil
+				@func = "pshuf"
+				@size = 8
+				@xmm_item_size = 2
+			when 0xF2 # Low bits
+				@func = "pshufl"
+				@size = 16
+				@xmm_item_size = 2
+			when 0xF3 # High bits
+				@func = "pshufh"
+				@size = 16
+				@xmm_item_size = 2
+			when 0x66
+				@func = "pshuf"
+				@size = 16
+				@xmm_item_size = 4
+			end
+			parse_modrm
+			@args.push @modrm.mm_or_xmm_register
+			@args.push @modrm.mm_or_xmm_register_or_memory
+			decode_immediate 1
 		when 0x0F72
 			@size = mm_or_xmm_operand_size
 			parse_modrm
@@ -425,10 +461,11 @@ class Instruction
 			end
 		when 0x0FD7
 			@func = "pmovmsk"
-			parse_modrm
 			@size = 4
+			parse_modrm
 			@args.push @modrm.register
 			@size = mm_or_xmm_operand_size
+			@modrm.operand_size = @size
 			@args.push @modrm.mm_or_xmm_register_or_memory
 		when 0x0FF0
 			raise "F2 prefix expected" unless @prefix.repne
@@ -869,8 +906,25 @@ class Instruction
 			arr = (@func == "punpckl") ? arr.slice(0, @size) : arr.slice(@size, @size)
 			@args[0].write arr
 		when "pmovmsk"
+			@args[0].write_with_zero_extension([])
 			arr = @args[1].read.map{|x| x[7]}
-			args[0].write_with_zero_extension(arr)
+			@args[0].write_bit_array(arr)
+		when "pshuf"
+			order = @args[2].read_int
+			data = @args[1].read + Array.new(@xmm_item_size * 3){|x| 0}
+			for i in 0..(@size / @xmm_item_size)
+				dest = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
+				shift = (order >> (2*i)) & 0b11
+				dest.write data.slice(@xmm_item_size * (i + shift), @xmm_item_size)
+			end
+		when "pshufl"
+			@func = "pshuf"
+			execute
+			@args[0].pointer_to_upper_half.write @args[1].pointer_to_upper_half.read
+		when "pshufh"
+			@func = "pshuf"
+			execute
+			@args[0].pointer_to_lower_half.write @args[1].pointer_to_lower_half.read
 		else
 			raise "function not implemented: " + @func
 		end
