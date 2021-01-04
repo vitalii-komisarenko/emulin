@@ -102,7 +102,7 @@ class Instruction
 			          ["size=2/4/8", "r",   "r/m"],
 			          ["size=1",     "acc", "imm1"],
 			          ["size=2/4/8", "acc", "imm2/4"]]
-			decode_arguments([funcs[modrm.opcode_ext]] + params[@opcode % 8])
+			decode_arguments([funcs[@opcode / 8]] + params[@opcode % 8])
 		when 0x50..0x57
 			@func = "push"
 			@size = multi_byte
