@@ -271,6 +271,14 @@ class Instruction
 			@args.push modrm.xmm_register
 			@args.push modrm.xmm_register_or_memory
 			raise "memory expected" if modrm.mode == 0b11
+		when 0x0F16
+			raise "not implemtented" unless @prefix.simd_prefix == 0x66
+			@func = "mov"
+			@size = 8
+			@args.push modrm.xmm_register
+			@args.push modrm.xmm_register_or_memory
+			raise "memory expected" if modrm.mode == 0b11
+			@args[0] = Pointer.new(@args[0].mem, @args[0].pos + 8, @args[0].size)
 		when 0x0F19..0x0F1F
 			@size = multi_byte == 8 ? 4 : multi_byte
 			@func = (@opcode == 0x0F1F) && (modrm.opcode_ext == 0) ? "nop" : "hint_nop"
