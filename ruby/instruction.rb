@@ -809,11 +809,11 @@ class Instruction
 			jump @args[1] if (@func == "loopnz") && !@cpu.flags.z
 		when 'sahf'
 			ah = @cpu.register[0].read(1, 1)[0]
-			@cpu.flags.c = ah[0]
-			@cpu.flags.p = ah[2]
-			@cpu.flags.a = ah[4]
-			@cpu.flags.z = ah[6]
-			@cpu.flags.s = ah[7]
+			@cpu.flags.c = ah[0] == 1
+			@cpu.flags.p = ah[2] == 1
+			@cpu.flags.a = ah[4] == 1
+			@cpu.flags.z = ah[6] == 1
+			@cpu.flags.s = ah[7] == 1
 		when 'lahf'
 			ah = 0
 			ah += @cpu.flags.c ? 1 : 0
