@@ -96,12 +96,12 @@ class Instruction
 		when 0x00..0x3F
 			raise "bad opcode: %02x" % @opcode if [6,7].include?(@opcode % 8)
 			funcs = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
-			params = [["size=1",     "r/m", "r"],
-			          ["size=2/4/8", "r/m", "r"],
-			          ["size=1",     "r",   "r/m"],
-			          ["size=2/4/8", "r",   "r/m"],
-			          ["size=1",     "acc", "imm1"],
-			          ["size=2/4/8", "acc", "imm2/4"]]
+			params = [[BYTE, R_M, REG],
+			          [LONG, R_M, REG],
+			          [BYTE, REG, R_M],
+			          [LONG, REG, R_M],
+			          [BYTE, ACC, IM1],
+			          [LONG, ACC, IMM]]
 			decode_arguments([funcs[@opcode / 8]] + params[@opcode % 8])
 		when 0x50..0x57
 			@func = "push"
@@ -461,25 +461,23 @@ class Instruction
 		tasks = arr[1..-1].nil? ? [] : arr[1..-1]
 		for task in tasks
 			case task
-			when "size=1"
+			when BYTE
 				@size = 1
-			when "size=2/4/8"
+			when LONG
 				@size = multi_byte
-			when "r"
+			when REG
 				@args.push modrm.register
-			when "r/m"
+			when R_M
 				@args.push modrm.register_or_memory
-			when "acc"
+			when ACC
 				encode_accumulator
-			when "imm"
-				decode_immediate
-			when "imm1"
+			when IM1
 				decode_immediate 1
-			when "imm2/4"
+			when IMM
 				decode_immediate_16or32
-			when "const=1"
+			when ONE
 				encode_value 1
-			when "carry flag"
+			when C_F
 				encode_value(@cpu.flags.c ? 1 : 0)
 			else
 				raise "unknown task: %s"
@@ -1077,38 +1075,51 @@ class Instruction
 		0x0F66 => ['pcmpgt', 4],
 	}
 
+	# operation size
+	BYTE = "s=1"     # 1 byte
+	LONG = "s=2/4/8" # 2/4/8 bytes
+
+	# arguments
+	REG = "r"    # register
+	R_M = "r/m"  # register / memory
+	IMM = "imm"  # immediate value not longer than 4 bytes
+	IM1 = "imm1" # 1-byte immediate value
+	ACC = "acc"  # accumulator
+	ONE = "_1_"  # constant value of 1
+	C_F = "c_f"  # carry flag
+
 	@@unified_opcode_table = {
-		0x69 => ["imul", "size=2/4/8", "r",   "r/m", "imm2/4"],
-		0x6B => ["imul", "size=2/4/8", "r",   "r/m", "imm1"],
-		0x84 => ['test', "size=1",     "r/m", "r"],
-		0x85 => ['test', "size=2/4/8", "r/m", "r"],
-		0x86 => ['xchg', "size=1",     "r",   "r/m"],
-		0x87 => ['xchg', "size=2/4/8", "r",   "r/m"],
-		0x88 => ['mov',  "size=1",     "r/m", "r"],
-		0x89 => ['mov',  "size=2/4/8", "r/m", "r"],
-		0x8A => ['mov',  "size=1",     "r",   "r/m"],
-		0x8B => ['mov',  "size=2/4/8", "r",   "r/m"],
-		0x8D => ['lea',  "size=2/4/8", "r",   "r/m"],
+		0x69 => ["imul", LONG, REG, R_M, IMM],
+		0x6B => ["imul", LONG, REG, R_M, IM1],
+		0x84 => ['test', BYTE, R_M, REG],
+		0x85 => ['test', LONG, R_M, REG],
+		0x86 => ['xchg', BYTE, REG, R_M],
+		0x87 => ['xchg', LONG, REG, R_M],
+		0x88 => ['mov',  BYTE, R_M, REG],
+		0x89 => ['mov',  LONG, R_M, REG],
+		0x8A => ['mov',  BYTE, REG, R_M],
+		0x8B => ['mov',  LONG, REG, R_M],
+		0x8D => ['lea',  LONG, REG, R_M],
 		0x9E => ["sahf"],
 		0x9F => ["lahf"],
-		0xA4 => ["movs", "size=1"],
-		0xA5 => ["movs", "size=2/4/8"],
-		0xA6 => ["cmps", "size=1"],
-		0xA7 => ["cmps", "size=2/4/8"],
-		0xA8 => ["test", "size=1",     "acc", "imm1"],
-		0xA9 => ["test", "size=2/4/8", "acc", "imm2/4"],
-		0xAA => ["stos", "size=1"],
-		0xAB => ["stos", "size=2/4/8"],
-		0xAC => ["lods", "size=1"],
-		0xAD => ["lods", "size=2/4/8"],
-		0xAE => ["scas", "size=1"],
-		0xAF => ["scas", "size=2/4/8"],
-		0xC0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "imm1"],
-		0xC1 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "imm1"],
-		0xD0 => ["#ROTATE/SHIFT", "size=1",     "r/m", "const=1"],
-		0xD1 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "const=1"],
-		0xD2 => ["#ROTATE/SHIFT", "size=1",     "r/m", "carry flag"],
-		0xD3 => ["#ROTATE/SHIFT", "size=2/4/8", "r/m", "carry flag"],
+		0xA4 => ["movs", BYTE],
+		0xA5 => ["movs", LONG],
+		0xA6 => ["cmps", BYTE],
+		0xA7 => ["cmps", LONG],
+		0xA8 => ["test", BYTE, ACC, IM1],
+		0xA9 => ["test", LONG, ACC, IMM],
+		0xAA => ["stos", BYTE],
+		0xAB => ["stos", LONG],
+		0xAC => ["lods", BYTE],
+		0xAD => ["lods", LONG],
+		0xAE => ["scas", BYTE],
+		0xAF => ["scas", LONG],
+		0xC0 => ["#ROTATE/SHIFT", BYTE, R_M, IM1],
+		0xC1 => ["#ROTATE/SHIFT", LONG, R_M, IM1],
+		0xD0 => ["#ROTATE/SHIFT", BYTE, R_M, ONE],
+		0xD1 => ["#ROTATE/SHIFT", LONG, R_M, ONE],
+		0xD2 => ["#ROTATE/SHIFT", BYTE, R_M, C_F],
+		0xD3 => ["#ROTATE/SHIFT", LONG, R_M, C_F],
 		0xF5 => ['cmc'],
 		0xF8 => ['clc'],
 		0xF9 => ['stc'],
@@ -1118,11 +1129,11 @@ class Instruction
 		0xFD => ['std'],
 		0x0F05 => ["syscall"],
 		0x0FA2 => ['cpuid'],
-		0x0FAF => ['imul', "size=2/4/8", "r",   "r/m"],
-		0x0FBC => ['bsf',  "size=2/4/8", "r",   "r/m"],
-		0x0FBD => ['bsr',  "size=2/4/8", "r",   "r/m"],
-		0x0FC0 => ['xadd', "size=1",     "r/m", "r"],
-		0x0FC1 => ['xadd', "size=2/4/8", "r/m", "r"],
+		0x0FAF => ['imul', LONG, REG, R_M],
+		0x0FBC => ['bsf',  LONG, REG, R_M],
+		0x0FBD => ['bsr',  LONG, REG, R_M],
+		0x0FC0 => ['xadd', BYTE, R_M, REG],
+		0x0FC1 => ['xadd', LONG, R_M, REG],
 	}
 end
 
