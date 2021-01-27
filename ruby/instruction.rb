@@ -452,19 +452,24 @@ class Instruction
 	end
 	
 	def decode_arguments(arr)
+		# size needs to be decoded first in case opcode extension is used
+		# since modrm parsing relies on it
+		case arr[1]
+		when BYTE
+			@size = 1
+		when LONG
+			@size = multi_byte
+		end
+
 		@func = arr[0]
 		case @func
 		when "#ROTATE/SHIFT"
 			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
 		end
 
-		tasks = arr[1..-1].nil? ? [] : arr[1..-1]
-		for task in tasks
-			case task
-			when BYTE
-				@size = 1
-			when LONG
-				@size = multi_byte
+		args = arr[2..-1].nil? ? [] : arr[2..-1]
+		for arg in args
+			case arg
 			when REG
 				@args.push modrm.register
 			when R_M
@@ -480,14 +485,8 @@ class Instruction
 			when C_F
 				encode_value(@cpu.flags.c ? 1 : 0)
 			else
-				raise "unknown task: %s"
+				raise "unknown argument: %s"
 			end
-
-			# Currently ModR/M gets operand size on its first initalization
-			# But in case of @func names like "#ROTATE/SHIFT" it is initalized
-			# before size is set.
-			# Workaround: update its size on each iteration
-			@modrm.operand_size = @size unless @modrm.nil?
 		end
 	end
 
