@@ -194,20 +194,6 @@ class Instruction:
 		elif self.opcode == 0xC3:
 			self.func = "retn"
 			self.encode_value(0)
-		elif self.opcode == 0xC6:
-			self.func = "mov"
-			self.size = 1
-			if self.modrm().opcode_ext() != 0:
-				self.unspecified_opcode_extension
-			self.args.append(self.modrm().register_or_memory())
-			self.decode_immediate()
-		elif self.opcode == 0xC7:
-			self.func = "mov"
-			self.size = self.multi_byte()
-			if self.modrm().opcode_ext() != 0:
-				self.unspecified_opcode_extension
-			self.args.append(self.modrm().register_or_memory())
-			self.decode_immediate_16or32()
 		elif self.opcode in [0xE0, 0xE1, 0xE2]:
 			self.func = ["loopnz", "loopz", "loop"][self.opcode - 0xE0]
 			self.encode_counter()
@@ -227,40 +213,6 @@ class Instruction:
 		when 0xEB
 			@func = "jmp"
 			decode_relative_address 1
-		when 0xFE
-			@size = 1
-			unspecified_opcode_extension unless [0, 1].include? modrm.opcode_ext
-			@func = modrm.opcode_ext == 0 ? "inc" : "dec"
-			@args.push modrm.register_or_memory
-			encode_value 1
-		when 0xF6
-			case modrm.opcode_ext
-			when 0, 1
-				@func = "test"
-				@size = 1
-				modrm.operand_size = 1
-				@args.push modrm.register_or_memory
-				decode_immediate_16or32
-			else
-				raise "opcode extension not implemented for opcode 0xF6: %d" % modrm.opcode_ext
-			end
-		when 0xF7
-			@size = multi_byte
-			case modrm.opcode_ext
-			when 0, 1
-				@func = "test"
-				@args.push modrm.register_or_memory
-				decode_immediate_16or32
-			when 3
-				@func = "neg"
-				encode_value 0
-				@args.push modrm.register_or_memory
-			when 6
-				@func = "div"
-				@args.push modrm.register_or_memory
-			else
-				raise "opcode extension not implemented for opcode 0xF7: %d" % modrm.opcode_ext
-			end
 		when 0xFF
 			case modrm.opcode_ext
 			when 0, 1
@@ -469,6 +421,13 @@ class Instruction:
 			elsif @@unified_opcode_table.key? @opcode
 				arr = @@unified_opcode_table[@opcode]
 				decode_arguments arr
+			elif self.opcode in opcodes_with_extenstions:
+				ext = self.modrm().opcode_ext()
+				if ext in opcodes_with_extenstions[self.opcode]:
+					arr = opcodes_with_extenstions[self.opcode][ext]
+					self.decode_arguments(arr)
+				else:
+					self.unspecified_opcode_extension()
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
@@ -488,6 +447,8 @@ class Instruction:
 		self.func = arr[0]
 		if self.func == "#ROTATE/SHIFT":
 			self.func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][self.modrm.opcode_ext()]
+		elif self.func == NOT_IMPLEMENTED:
+			raise "not implemented"
 
 		args = arr[2:]
 		for arg in args:
@@ -501,6 +462,8 @@ class Instruction:
 				self.decode_immediate(1)
 			elif arg == IMM:
 				self.decode_immediate_16or32()
+			elif arg == ZERO:
+				self.encode_value(0)
 			elif arg == ONE:
 				self.encode_value(1)
 			elif arg == C_F:
@@ -1102,8 +1065,11 @@ class Instruction:
 	IMM = "imm"  # immediate value not longer than 4 bytes
 	IM1 = "imm1" # 1-byte immediate value
 	ACC = "acc"  # accumulator
+	ZERO = "_0_" # constant value of 0
 	ONE = "_1_"  # constant value of 1
 	C_F = "c_f"  # carry flag
+
+	NOT_IMPLEMENTED = "n/i" # opcode or opcode extension not implemented
 
 	unified_opcode_table = {
 		0x69: ["imul", LONG, REG, R_M, IMM],
@@ -1151,6 +1117,35 @@ class Instruction:
 		0x0FBD: ['bsr',  LONG, REG, R_M],
 		0x0FC0: ['xadd', BYTE, R_M, REG],
 		0x0FC1: ['xadd', LONG, R_M, REG],
+	}
+
+	opcodes_with_extenstions = {
+		0xC6: {0: ["mov", BYTE, R_M, IMM]},
+		0xC7: {0: ["mov", LONG, R_M, IMM]},
+		0xFE: {
+			0: ["inc", BYTE, R_M, ONE],
+			1: ["dec", BYTE, R_M, ONE],
+		},
+		0xF6: {
+			0: ["test", BYTE, R_M, IMM],
+			1: ["test", BYTE, R_M, IMM],
+			2: [NOT_IMPLEMENTED],
+			3: ["neg", BYTE, ZERO, R_M],
+			4: [NOT_IMPLEMENTED],
+			5: [NOT_IMPLEMENTED],
+			6: [NOT_IMPLEMENTED],
+			7: [NOT_IMPLEMENTED],
+		},
+		0xF6: {
+			0: ["test", LONG, R_M, IMM],
+			1: ["test", LONG, R_M, IMM],
+			2: [NOT_IMPLEMENTED],
+			3: ["neg", LONG, ZERO, R_M],
+			4: [NOT_IMPLEMENTED],
+			5: [NOT_IMPLEMENTED],
+			6: ["div", LONG, R_M],
+			7: [NOT_IMPLEMENTED],
+		}
 	}
 end
 
