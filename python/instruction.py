@@ -461,44 +461,38 @@ class Instruction:
 		end
 	end
 	
-	def decode_arguments(arr)
+	def decode_arguments(self, arr):
 		# size needs to be decoded first in case opcode extension is used
 		# since modrm parsing relies on it
-		case arr[1]
-		when BYTE
-			@size = 1
-		when LONG
-			@size = multi_byte
-		end
 
-		@func = arr[0]
-		case @func
-		when "#ROTATE/SHIFT"
-			@func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
-		end
+		size = arr[1]
+		if size == BYTE:
+			self.size = 1
+		elif size == LONG:
+			self.size = multi_byte()
 
-		args = arr[2..-1].nil? ? [] : arr[2..-1]
-		for arg in args
-			case arg
-			when REG
-				@args.push modrm.register
-			when R_M
-				@args.push modrm.register_or_memory
-			when ACC
-				encode_accumulator
-			when IM1
-				decode_immediate 1
-			when IMM
-				decode_immediate_16or32
-			when ONE
-				encode_value 1
-			when C_F
-				encode_value(@cpu.flags.c ? 1 : 0)
-			else
-				raise "unknown argument: %s"
-			end
-		end
-	end
+		self.func = arr[0]
+		if self.func == "#ROTATE/SHIFT":
+			self.func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][self.modrm.opcode_ext()]
+
+		args = arr[2:]
+		for arg in args:
+			if arg == REG:
+				self.args.append(self.modrm.register())
+			elif arg == R_M:
+				self.args.append(self.modrm.register_or_memory())
+			elif arg == ACC:
+				self.encode_accumulator()
+			elif arg == IM1:
+				self.decode_immediate(1)
+			elif arg == IMM:
+				self.decode_immediate_16or32()
+			elif arg == ONE:
+				self.encode_value(1)
+			elif arg == C_F:
+				self.encode_value(self.cpu.flags.c)
+			else:
+				raise "unknown argument: %s" % arg
 
 	def mm_or_xmm_operand_size
 		# TODO: add support of VEX/EVEX
