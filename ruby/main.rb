@@ -3,7 +3,7 @@ require_relative "memory"
 require_relative "cpu"
 require_relative "linux"
 
-elf = Elf.new("../hello_c-static")
+elf = Elf.new("../progs_to_test/bin/hello_cpp")
 
 puts "is 64 bit: %s" % elf.elf_header.is_64_bit
 
