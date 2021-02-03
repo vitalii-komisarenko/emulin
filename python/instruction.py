@@ -128,76 +128,90 @@ class Instruction:
 		elif self.opcode == 0x0FBE:
 			self.func = "movsx"
 			self.size = self.multi_byte()
-			self.args.append(self.modrm.register())
+			self.args.append(self.modrm().register())
 			self.modrm.operand_size = 1
-			self.args.append(self.modrm.register_or_memory())
+			self.args.append(self.modrm().register_or_memory())
 		elif self.opcode == 0x0FBF:
 			self.func = "movsx"
 			self.size = self.multi_byte()
-			self.args.append(self.modrm.register())
+			self.args.append(self.modrm().register())
 			self.modrm.operand_size = 2
-			self.args.append(self.modrm.register_or_memory())
-		when 0x0FB6..0x0FB7
-			@func = "movzx"
-			@size = self.multi_byte()
-			@args.push modrm.register
-			modrm.operand_size = @opcode == 0x0FB6 ? 1 : 2
-			@args.push modrm.register_or_memory
-		when 0x70..0x7F
-			@func = "jmp"
-			@cond = @opcode % 16
-			decode_relative_address 1
-		when 0x0F80..0x0F8F
-			@func = "jmp"
-			@cond = @opcode % 16
+			self.args.append(self.modrm().register_or_memory())
+		elif self.opcode == 0x0FB6:
+			self.func = "movzx"
+			self.size = self.multi_byte()
+			self.args.append(self.modrm().register())
+			self.modrm.operand_size = 1
+			self.args.append(self.modrm().register_or_memory())
+		elif self.opcode == 0x0FB7:
+			self.func = "movzx"
+			self.size = self.multi_byte()
+			self.args.append(self.modrm().register())
+			self.modrm.operand_size = 2
+			self.args.append(self.modrm().register_or_memory())
+		elif self.opcode >= 0x70 and self.opcode <= 0x7F:
+			self.func = "jmp"
+			self.cond = self.opcode % 16
+			self.decode_relative_address(1)
+		elif self.opcode >= 0x0F80 and self.opcode <= 0x0F8F:
+			self.func = "jmp"
+			self.cond = self.opcode % 16
 			# TODO: are 16-bit offset specified?
-			decode_relative_address 4
-		when 0x80, 0x81, 0x83
-			@size = @opcode == 0x80 ? 1 : multi_byte
-			@func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
-			@args = [ modrm.register_or_memory ]
+			self.decode_relative_address(4)
+		elif self.opcode in [0x80, 0x81, 0x83]:
+			if self.opcode == 0x80:
+				self.size = 1
+			else:
+				self.size = self.multi_byte()
 
-			if @opcode == 0x81
-				decode_immediate_16or32
-			else
-				decode_immediate 1
-			end
-		when 0x90
-			@func = @prefix.repe ? "pause" : "nop"
-		when 0x91..0x97
-			@func = "xchg"
-			@size = multi_byte
-			encode_accumulator
-			decode_register_from_opcode
-		when 0xb0..0xb7
-			@func = "mov"
-			@size = 1
-			decode_register_from_opcode
-			decode_immediate
-		when 0xb8..0xbf
-			@func = "mov"
-			@size = multi_byte
-			decode_register_from_opcode
-			decode_immediate
-		when 0xC3
-			@func = "retn"
-			encode_value 0
-		when 0xC6
-			@func = "mov"
-			@size = 1
-			unspecified_opcode_extension unless modrm.opcode_ext == 0
-			@args.push modrm.register_or_memory
-			decode_immediate
-		when 0xC7
-			@func = "mov"
-			@size = multi_byte
-			unspecified_opcode_extension unless modrm.opcode_ext == 0
-			@args.push modrm.register_or_memory
-			decode_immediate_16or32
-		when 0xE0..0xE2
-			@func = ["loopnz", "loopz", "loop"][@opcode - 0xE0]
-			encode_counter
-			decode_relative_address 1
+			self.func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][self.modrm().opcode_ext()]
+			self.args.append(self.modrm().register_or_memory()
+
+			if self.opcode == 0x81:
+				self.decode_immediate_16or32()
+			else:
+				self.decode_immediate(1)
+		elif self.opcode == 0x90:
+			if self.prefix.repe:
+				self.func = "pause"
+			else:
+				self.func = "nop"
+		elif self.opcode >= 0x91 and self.opcode <= 0x97:
+			self.func = "xchg"
+			self.size = self.multi_byte()
+			self.encode_accumulator()
+			self.decode_register_from_opcode()
+		elif self.opcode >= 0xb0 and self.opcode <= 0xb7:
+			self.func = "mov"
+			self.size = 1
+			self.decode_register_from_opcode()
+			self.decode_immediate()
+		elif self.opcode >= 0xb8 and self.opcode <= 0xbf:
+			sefl.func = "mov"
+			self.size = multi_byte
+			self.decode_register_from_opcode()
+			self.decode_immediate()
+		elif self.opcode == 0xC3:
+			self.func = "retn"
+			self.encode_value(0)
+		elif self.opcode == 0xC6:
+			self.func = "mov"
+			self.size = 1
+			if self.modrm().opcode_ext() != 0:
+				self.unspecified_opcode_extension
+			self.args.append(self.modrm().register_or_memory())
+			self.decode_immediate()
+		elif self.opcode == 0xC7:
+			self.func = "mov"
+			self.size = self.multi_byte()
+			if self.modrm().opcode_ext() != 0:
+				self.unspecified_opcode_extension
+			self.args.append(self.modrm().register_or_memory())
+			self.decode_immediate_16or32()
+		elif self.opcode in [0xE0, 0xE1, 0xE2]:
+			self.func = ["loopnz", "loopz", "loop"][self.opcode - 0xE0]
+			self.encode_counter()
+			self.decode_relative_address(1)
 		when 0xE8
 			if @prefix.operand_size_overridden
 				raise "Use of operand-size prefix in 64-bit mode may result in implementation-dependent behaviour"
