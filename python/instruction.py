@@ -1,9 +1,9 @@
-require_relative "stream"
-require_relative "pointer"
-require_relative "const_buffer"
+import stream
+import pointer
+import const_buffer
 
-class InstructionPrefix
-	@@prefixes_to_ignore = [
+class InstructionPrefix:
+	prefixes_to_ignore = [
 		0xF0, # LOCK prefix
 		0x2E, # CS segment override - ignored in 64-bit mode
 		0x36, # SS segment override - ignored in 64-bit mode
@@ -13,88 +13,88 @@ class InstructionPrefix
 		0x3E, # Branch taken 
 	]
 
-	attr_reader :operand_size_overridden, :address_size_overridden, :segment,
-	            :repe, :repne, :rex_w, :reg_extension, :rex_x, :rex_b
-	
-	def initialize(stream)
-		@operand_size_overridden = false
-		@address_size_overridden = false
-		@repe = false
-		@repne = false
-		@segment = "none"
+	def __init__(self, stream)
+		self.operand_size_overridden = False
+		self.address_size_overridden = False
+		self.repe = False
+		self.repne = False
+		self.segment = "none"
 
-		@rex_w = 0
-		@reg_extension = 0
-		@rex_x = 0
-		@rex_b = 0
+		self.rex_w = 0
+		self.reg_extension = 0
+		self.rex_x = 0
+		self.rex_b = 0
 	
-		loop do
-			prefix = stream.read
+		while True:
+			prefix = stream.read()
 
-			case prefix
-			when *@@prefixes_to_ignore
-				"ignore"
-			when 0x40..0x4F # REX prefix
-				@rex_w = prefix[3]
-				@reg_extension = 8 * prefix[2]
-				@rex_x = prefix[1]
-				@rex_b = prefix[0]
-			when 0x64 # FS segment override
-				@segment = "FS"
-			when 0x65 # GS segment override
-				@segment = "GS"
-			when 0x66 # Operand-size override prefix
-				@operand_size_overridden = true
-			when 0x67 # Address-size override prefix
-				@address_size_overridden = true
-			when 0xF2 # REPNE/REPNZ prefix
-				@repne = true
-			when 0xF3 # REP or REPE/REPZ prefix
-				@repe = true
-			else
+			if prefix in prefixes_to_ignore:
+				pass
+			elif (prefix >= 0x40) and (prefix <= 0x4F): # REX prefix
+				self.rex_w = (prefix >> 3) & 1
+				self.reg_extension = 8 * ((prefix >> 2) & 1)
+				self.rex_x = (prefix >> 1) & 1
+				self.rex_b = prefix & 1
+			elif prefix == 0x64: # FS segment override
+				self.segment = "FS"
+			elif prefix == 0x65: # GS segment override
+				self.segment = "GS"
+			elif prefix == 0x66: # Operand-size override prefix
+				self.operand_size_overridden = True
+			elif prefix == 0x67: # Address-size override prefix
+				self.address_size_overridden = True
+			elif prefix == 0xF2: # REPNE/REPNZ prefix
+				self.repne = True
+			elif prefix == 0xF3: # REP or REPE/REPZ prefix
+				self.repe = True
+			else:
 				# all the prefixes have been read
-				stream.back
+				stream.back()
 				break
-			end
-		end
-	end
 
-	def simd_prefix
+	def simd_prefix(self):
 		arr = []
-		arr.push 0x66 if @operand_size_overridden
-		arr.push 0xF2 if @repne
-		arr.push 0xF3 if @repe
-		if arr.length > 1
-			raise "only one SIMD prefix expected, but several provided: " + arr.map{|x| "%02X" % x}.join(", ")
-		end
+
+		if self.operand_size_overridden:
+			arr.append(0x66)
+
+		if self.repne:
+			arr.append(0xF2)
+
+		if self.repe:
+			arr.append(0xF3)
+
+		if len(arr) > 1:
+			raise "only one SIMD prefix expected, but several provided"
+
 		return arr[0]
-	end
-end
 
-class Instruction
-	attr_reader :function, :arguments
-	def initialize(stream, cpu, linux)
-		@stream = stream
-		@cpu = cpu
-		@linux = linux
+class Instruction:
+	def __init__(self, stream, cpu, linux)
+		self.stream = stream
+		self.cpu = cpu
+		self.linux = linux
 
-		@prefix = InstructionPrefix.new(stream)
-		@opcode = read_opcode(stream)
-		@modrm = nil
+		self.prefix = InstructionPrefix.new(stream)
+		self.opcode = read_opcode(stream)
+		self.modrm = nil
 		
-		@func = nil # operation to be done (e.g. 'add', 'mov' etc.)
-		@size = nil # operand size (in bytes)
-		@args = []  # operation arguments. If operation result is to be stored
-		            # the destination is encoded in the first argument
-		@cond = nil # condition to check for conditional operations (e.g. 'jne', 'cmovo')
+		self.func = nil # operation to be done (e.g. 'add', 'mov' etc.)
+		self.size = nil # operand size (in bytes)
+		self.args = []  # operation arguments. If operation result is stored
+		                # the destination is encoded in the first argument
+		self.cond = nil # condition to check for conditional operations
+                        # (e.g. 'jne', 'cmovo')
 		
-		@xmm_item_size = nil
+		self.xmm_item_size = nil
 		
-		@address_size = @prefix.address_size_overridden ? 4 : 8
+		self.address_size = self.prefix.address_size_overridden ? 4 : 8
 		
 		case @opcode
-		when 0x00..0x3F
-			raise "bad opcode: %02x" % @opcode if [6,7].include?(@opcode % 8)
+		if self.opcode >= 0x00 and self.opcode <= 0x3F:
+			if self.opcode % 8 in [6, 7]:
+				raise "bad opcode: %02x"
+
 			funcs = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
 			params = [[BYTE, R_M, REG],
 			          [LONG, R_M, REG],
@@ -102,34 +102,44 @@ class Instruction
 			          [LONG, REG, R_M],
 			          [BYTE, ACC, IM1],
 			          [LONG, ACC, IMM]]
-			decode_arguments([funcs[@opcode / 8]] + params[@opcode % 8])
-		when 0x50..0x57
-			@func = "push"
-			@size = multi_byte
-			decode_register_from_opcode
-		when 0x58..0x5F
-			@func = "pop"
-			@size = multi_byte
-			decode_register_from_opcode
-		when 0x63
-			@func = "movsxd"
-			@size = multi_byte
-			@args.push modrm.register
-			modrm.operand_size = [4, modrm.operand_size].min
-			@args.push modrm.register_or_memory
-		when 0x68, 0x6A
-			@func = "push"
-			@size = @opcode == 0x68 ? multi_byte : 1
-			decode_immediate_16or32
-		when 0x0FBE..0x0FBF
-			@func = "movsx"
-			@size = multi_byte
-			@args.push modrm.register
-			modrm.operand_size = @opcode == 0x0FBE ? 1 : 2
-			@args.push modrm.register_or_memory
+			self.decode_arguments([funcs[self.opcode / 8]] + params[self.opcode % 8])
+		elif self.opcode >= 0x50 and self.opcode <= 0x57:
+			self.func = "push"
+			self.size = self.multi_byte()
+			self.decode_register_from_opcode()
+		elif self.opcode >= 0x58 and self.opcode <= 0x5F:
+			self.func = "pop"
+			self.size = self.multi_byte()
+			self.decode_register_from_opcode()
+		elif self.opcode == 0x63
+			self.func = "movsxd"
+			self.size = self.multi_byte
+			self.args.append(self.modrm.register())
+			self.modrm.operand_size = min(4, modrm.operand_size)
+			self.args.append(self.modrm.register_or_memory())
+		elif self.opcode == 0x68:
+			self.func = "push"
+			self.size = self.multi_byte()
+			self.decode_immediate_16or32()
+		elif self.opcode == 0x6A:
+			self.func = "push"
+			self.size = 1
+			self.decode_immediate_16or32()
+		elif self.opcode == 0x0FBE:
+			self.func = "movsx"
+			self.size = self.multi_byte()
+			self.args.append(self.modrm.register())
+			self.modrm.operand_size = 1
+			self.args.append(self.modrm.register_or_memory())
+		elif self.opcode == 0x0FBF:
+			self.func = "movsx"
+			self.size = self.multi_byte()
+			self.args.append(self.modrm.register())
+			self.modrm.operand_size = 2
+			self.args.append(self.modrm.register_or_memory())
 		when 0x0FB6..0x0FB7
 			@func = "movzx"
-			@size = multi_byte
+			@size = self.multi_byte()
 			@args.push modrm.register
 			modrm.operand_size = @opcode == 0x0FB6 ? 1 : 2
 			@args.push modrm.register_or_memory
