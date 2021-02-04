@@ -10,7 +10,16 @@ class Utils:
         else:
             return arr
 
-    def highest_bit_set(value, size):
+    def highest_bit(value, size):
+        """
+        Extract the highest bit of the interger of given size
+
+        :param value: the integer value. Negative values accepted
+        :param size: number of bytes in the binary representation
+        :returns: the highest bit -- 1 or 0
+        :raises ValueError: interger value cannot be represented using given
+            number of bytes
+        """
         overflow = False
         if value > 256 ** size:
             overflow = True
@@ -18,7 +27,7 @@ class Utils:
             overflow = True
 
         if overflow:
-            raise f"value {value} does not fit into {size} byte(s)"
+            raise ValueError(f"value {value} does not fit into {size} byte(s)")
 
         if value < 0:
             return True
@@ -27,7 +36,7 @@ class Utils:
             value //= 256
             size -= 1
 
-        return value & 0x80
+        return (value & 0x80) >> 7
 
 
 class TestUtils(unittest.TestCase):
@@ -50,16 +59,16 @@ class TestUtils(unittest.TestCase):
         self.assertListEqual(arr3, [3, 2, 1])
         self.assertListEqual(arr3_resized, [3, 2, 1])
 
-    def test_highest_bit_set(self):
+    def test_higher_bit(self):
         # basic checks
-        self.assertTrue(Utils.highest_bit_set(0x80, 1))
-        self.assertFalse(Utils.highest_bit_set(0x80, 2))
+        self.assertEqual(Utils.highest_bit(0x80, 1), 1)
+        self.assertEqual(Utils.highest_bit(0x80, 2), 0)
 
         # check long numbers (more than 8 bytes)
-        self.assertTrue(Utils.highest_bit_set(0xFF00FF00FF00FF00FF00, 10))
-        self.assertFalse(Utils.highest_bit_set(0x7FFF00FF00FF00FF00FF00, 11))
+        self.assertEqual(Utils.highest_bit(0xFF00FF00FF00FF00FF00, 10), 1)
+        self.assertEqual(Utils.highest_bit(0x7FFF00FF00FF00FF00FF00, 11), 0)
 
         # check negative numbers
-        self.assertTrue(Utils.highest_bit_set(-1, 1))
-        self.assertTrue(Utils.highest_bit_set(-0x80, 1))
-        self.assertTrue(Utils.highest_bit_set(-0x80, 2))
+        self.assertEqual(Utils.highest_bit(-1, 1), 1)
+        self.assertEqual(Utils.highest_bit(-0x80, 1), 1)
+        self.assertEqual(Utils.highest_bit(-0x80, 2), 1)

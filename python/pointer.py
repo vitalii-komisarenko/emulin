@@ -81,14 +81,8 @@ class Pointer:
         # else
         #     raise "bad size: %d" % size
 
-    def highest_bit_set(self):
-        return Utils.highest_bit_set(self.read_int(), self.size)
-
     def highest_bit(self):
-        if self.highest_bit_set():
-            return 1
-        else:
-            return 0
+        return Utils.highest_bit(self.read_int(), self.size)
 
     def pointer_to_upper_half(self):
         if self.size % 2 != 0:
