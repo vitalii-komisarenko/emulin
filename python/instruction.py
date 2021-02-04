@@ -2,6 +2,7 @@ import stream
 import pointer
 import const_buffer
 
+
 class InstructionPrefix:
 	prefixes_to_ignore = [
 		0xF0, # LOCK prefix
@@ -90,10 +91,12 @@ class Instruction:
                         # (e.g. 'jne', 'cmovo')
 		
 		self.xmm_item_size = nil
+
+		if self.prefix.address_size_overridden:
+			self.address_size = 4
+		else:
+			self.address_size = 8
 		
-		self.address_size = self.prefix.address_size_overridden ? 4 : 8
-		
-		case @opcode
 		if self.opcode >= 0x00 and self.opcode <= 0x3F:
 			if self.opcode % 8 in [6, 7]:
 				raise "bad opcode: %02x"
@@ -201,202 +204,223 @@ class Instruction:
 			self.func = ["loopnz", "loopz", "loop"][self.opcode - 0xE0]
 			self.encode_counter()
 			self.decode_relative_address(1)
-		when 0xE8
-			if @prefix.operand_size_overridden
+		elif self.opcode == 0xE8:
+			if self.prefix.operand_size_overridden:
 				raise "Use of operand-size prefix in 64-bit mode may result in implementation-dependent behaviour"
-			end
-			@func = "call"
-			decode_relative_address 4
-		when 0xE9
-			if @prefix.operand_size_overridden
+			self.func = "call"
+			self.decode_relative_address(4)
+		elif self.opcode == 0xE9:
+			if self.prefix.operand_size_overridden:
 				raise "Use of operand-size prefix in 64-bit mode may result in implementation-dependent behaviour"
-			end
-			@func = "jmp"
-			decode_relative_address 4
-		when 0xEB
-			@func = "jmp"
-			decode_relative_address 1
-		when 0xFF
-			case modrm.opcode_ext
-			when 0, 1
-				@func = modrm.opcode_ext == 0 ? "inc" : "dec"
-				@size = multi_byte
-				modrm.operand_size = multi_byte
-				@args.push modrm.register_or_memory
-				encode_value 1
-			when 2, 4
-				@func = @opcode == 4 ? "jmp" : "call"
+			self.func = "jmp"
+			self.decode_relative_address(4)
+		elif self.opcode == 0xEB:
+			self.func = "jmp"
+			self.decode_relative_address(1)
+		elif self.opcode == 0xFF:
+			ext = self.modrm().opcode_ext()
+			if ext == 0:
+				self.func = "inc"
+				self.size = self.multi_byte()
+				self.modrm().operand_size = self.multi_byte()
+				self.args.append(modrm().register_or_memory())
+				self.encode_value(1)
+			elif ext == 1:
+				self.func = "dec"
+				self.size = self.multi_byte()
+				self.modrm().operand_size = self.multi_byte()
+				self.args.append(modrm().register_or_memory())
+				self.encode_value(1)
+			elif ext == 2:
+				self.func = "call"
 				# TODO: unspecified behaviour for 16 and 32-bit operands
-				@size = multi_byte
-				modrm.operand_size = multi_byte
-				ptr = modrm.register_or_memory
-				encode_value ptr.read_int
-			else
-				raise "opcode extension not implemented for opcode 0xFF: %d" % modrm.opcode_ext
-			end
-		when 0x0F12
-			raise "not implemtented" unless @prefix.simd_prefix == 0x66
-			@func = "mov"
-			@size = 8
-			@args.push modrm.xmm_register
-			@args.push modrm.xmm_register_or_memory
-			raise "memory expected" if modrm.mode == 0b11
-		when 0x0F16
-			raise "not implemtented" unless @prefix.simd_prefix == 0x66
-			@func = "mov"
-			@size = 8
-			@args.push modrm.xmm_register
-			@args.push modrm.xmm_register_or_memory
-			raise "memory expected" if modrm.mode == 0b11
-			@args[0] = Pointer.new(@args[0].mem, @args[0].pos + 8, @args[0].size)
-		when 0x0F19..0x0F1F
-			@size = multi_byte == 8 ? 4 : multi_byte
-			@func = (@opcode == 0x0F1F) && (modrm.opcode_ext == 0) ? "nop" : "hint_nop"
-			@args.push modrm.register_or_memory
-		when 0x0F40..0x0F4F
-			@func = "mov"
-			@cond = @opcode % 16
-			@size = multi_byte
-			@args.push modrm.register
-			@args.push modrm.register_or_memory
-		when 0x0F6E
-			@func = "movq"
-			@size = mm_or_xmm_operand_size
-			@args.push modrm.mm_or_xmm_register
-			@size = @prefix.rex_w ? 8 : 4
-			modrm.operand_size = @size
-			@args.push modrm.register_or_memory
-		when 0x0F6F
-			# TODO: add support of VEX/EVEX
-			@func = "mov"
-			@size = mm_or_xmm_operand_size
-			if @prefix.repe
-				@size = 16
-			end
-			@xmm_item_size = 1
-			@args.push modrm.mm_or_xmm_register
-			@args.push modrm.mm_or_xmm_register_or_memory
-		when 0x0F70
-			# TODO: add support of VEX/EVEX
-			# Note that VEX/EVEX versions clear some high bits
-			case @prefix.simd_prefix
-			when nil
-				@func = "pshuf"
-				@size = 8
-				@xmm_item_size = 2
-			when 0xF2 # Low bits
-				@func = "pshufl"
-				@size = 16
-				@xmm_item_size = 2
-			when 0xF3 # High bits
-				@func = "pshufh"
-				@size = 16
-				@xmm_item_size = 2
-			when 0x66
-				@func = "pshuf"
-				@size = 16
-				@xmm_item_size = 4
-			end
-			@args.push modrm.mm_or_xmm_register
-			@args.push modrm.mm_or_xmm_register_or_memory
-			decode_immediate 1
-		when 0x0F72
-			@size = mm_or_xmm_operand_size
-			case modrm.opcode_ext
-			when 2,4
+				self.size = self.multi_byte()
+				self.modrm().operand_size = self.multi_byte()
+				ptr = self.modrm().register_or_memory()
+				self.encode_value(ptr.read_int)
+			elif ext == 4:
+				self.func = "jmp"
+				# TODO: unspecified behaviour for 16 and 32-bit operands
+				self.size = self.multi_byte()
+				self.modrm().operand_size = self.multi_byte()
+				ptr = self.modrm().register_or_memory()
+				self.encode_value(ptr.read_int)
+			else:
+				raise "opcode extension not implemented for opcode 0xFF: %d" % ext
+			
+		elif self.opcode == 0x0F12:
+			if self.prefix.simd_prefix != 0x66:
+				raise "not implemtented"
+
+			self.func = "mov"
+			self.size = 8
+			self.args.append(self.modrm().xmm_register())
+			self.args.append(self.modrm().xmm_register_or_memory())
+			if modrm.mode == 0b11:
+				raise "memory expected" 
+		elif self.opcode == 0x0F16:
+			if self.prefix.simd_prefix != 0x66:
+				raise "not implemtented"
+
+			self.func = "mov"
+			self.size = 8
+			self.args.append(self.modrm().xmm_register())
+			self.args.append(self.modrm().xmm_register_or_memory())
+			if modrm.mode == 0b11:
+				raise "memory expected" 
+			self.args[0] = Pointer(self.args[0].mem, self.args[0].pos + 8, self.args[0].size)
+		elif self.opcode >= 0x0F19 and self.opcode <= 0x0F1F:
+			if self.multi_byte() == 8:
+				self.size = 4
+			else:
+				self.size = self.multi_byte()
+			self.func = "nop"
+			self.args.append(self.modrm().register_or_memory())
+		elif self.opcode >= 0x0F40 and self.opcode <= 0x0F4F:
+			self.func = "mov"
+			self.cond = self.opcode % 16
+			self.size = self.multi_byte()
+			self.args.append(self.modrm().register())
+			self.args.append(self.modrm().register_or_memory())
+		elif self.opcode == 0x0F6E:
+			self.func = "movq"
+			self.size = self.mm_or_xmm_operand_size()
+			self.args.append(self.modrm().mm_or_xmm_register())
+			if self.prefix.rex_w:
+				self.size = 8
+			else:
+				self.size = 4
+			self.modrm().operand_size = self.size
+			self.args.append(self.modrm().register_or_memory())
+		elif self.opcode == 0x0F6F:
+			self.func = "mov"
+			self.size = self.mm_or_xmm_operand_size()
+			if self.prefix.repe:
+				self.size = 16
+			self.xmm_item_size = 1
+			self.args.append(self.modrm().mm_or_xmm_register())
+			self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+		elif self.opcode == 0x0F70:
+			simd_prefix = self.prefix.simd_prefix
+			if simd_prefix == 0x00:
+				self.func = "pshuf"
+				self.size = 8
+				self.xmm_item_size = 2
+			elif simd_prefix ==  0xF2: # Low bits
+				self.func = "pshufl"
+				self.size = 16
+				self.xmm_item_size = 2
+			elif simd_prefix == 0xF3: # High bits
+				self.func = "pshufh"
+				self.size = 16
+				self.xmm_item_size = 2
+			elif simd_prefix == 0x66:
+				self.func = "pshuf"
+				self.size = 16
+				self.xmm_item_size = 4
+
+			self.args.append(self.modrm().mm_or_xmm_register())
+			self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+			self.decode_immediate(1)
+		elif self.opcode == 0x0F72:
+			self.size = self.mm_or_xmm_operand_size()
+			ext = self.modrm().opcode_ext()
+			if ext in [2, 4]:
 				raise "opcode extension not implemented"
-			when 6
-				@func = "psll"
-				@xmm_item_size = 4
-				@args.push modrm.mm_or_xmm_register_or_memory
-				decode_immediate 1
-			else
-				unspecified_opcode_extension
-			end
-		when 0x0F73
-			@size = mm_or_xmm_operand_size
-			case modrm.opcode_ext
-			when 2
+			elif ext == 6:
+				self.func = "psll"
+				self.xmm_item_size = 4
+				self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+				self.decode_immediate(1)
+			else:
+				self.unspecified_opcode_extension()
+		elif self.opcode == 0x0F73:
+			self.size = self.mm_or_xmm_operand_size()
+			ext = self.modrm().opcode_ext()
+			if ext == 2:
 				raise "not implemented"
-			when 6
-				@func = "psll"
-				@xmm_item_size = 8
-				@args.push modrm.mm_or_xmm_register_or_memory
-				decode_immediate 1
-			when 3, 7
+			elif ext == 6:
+				self.func = "psll"
+				self.xmm_item_size = 8
+				self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+				self.decode_immediate(1)
+			elif ext in [3, 7]:
 				# TODO: verify that prefix 66 exists
 				raise "not implemented"
+			else:
+				self.unspecified_opcode_extension()
+		elif self.opcode == 0x0F7E:
+			self.func = "movq"
+			if not self.prefix.repe:
+				raise "not implemented"
+			self.size = 16 # It is a workaround. ModR/M uses size to distinguish
+			               # MMX and XMM registers
+			self.args.append(self.modrm().mm_or_xmm_register())
+			self.args[0].size = 8 # fix size
+			self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+			if self.modrm().mode() == 0x3 # points to a register
+				self.args[1].size = 16 # fix size
 			else
-				unspecified_opcode_extension
-			end
-		when 0x0F7E
-			# TODO: add support of VEX/EVEX
-			@func = "movq"
-			raise "not implemented" unless @prefix.repe
-			@size = 16 # It is a workaround. ModR/M uses size to distinguish
-			           # MMX and XMM registers
-			@args.push modrm.mm_or_xmm_register
-			@args[0].size = 8 # fix size
-			@args.push modrm.mm_or_xmm_register_or_memory
-			if modrm.mode == 0x3 # points to a register
-				@args[1].size = 16 # fix size
-			else
-				@args[1].size = 8 # fix size
-			end
-		when 0x0F7F
-			@func = "mov"
-			@size = (@prefix.operand_size_overridden || @prefix.repe) ? 16 : 8
-			@args.push modrm.mm_or_xmm_register_or_memory
-			@args.push modrm.mm_or_xmm_register
-		when 0x0FD6
-			# TODO: add support of VEX/EVEX
-			raise "not implemented" unless @prefix.operand_size_overridden
-			@func = "movq"
-			@size = 8
-			@args.push modrm.xmm_register_or_memory
-			@args.push modrm.xmm_register
-			if modrm.mode == 0x3 # points to a register
+				self.args[1].size = 8 # fix size
+		elif self.opcode == 0x0F7F:
+			self.func = "mov"
+			if self.prefix.operand_size_overridden || self.prefix.repe:
+				self.size = 16
+			else:
+				self.size = 8
+			self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+			self.args.append(self.modrm().mm_or_xmm_register())
+		elif self.opcode == 0x0FD6:
+ 			if not self.prefix.operand_size_overridden:
+				raise "not implemented"
+			self.func = "movq"
+			self.size = 8
+			self.args.append(self.modrm().xmm_register_or_memory())
+			self.args.append(self.modrm.xmm_register())
+			if self.modrm().mode() == 0x3: # points to a register
 				@args[1].size = 16 # to clear highest bits of the XMM register
-			end
-		when 0x0FD7
-			@func = "pmovmsk"
-			@size = 4
-			@args.push modrm.register
-			@size = mm_or_xmm_operand_size
-			modrm.operand_size = @size
-			@args.push modrm.mm_or_xmm_register_or_memory
-		when 0x0FF0
-			raise "F2 prefix expected" unless @prefix.repne
-			@func = "mov"
-			@size = 16
-			@args.push modrm.xmm_register
-			raise "register expected, but ModR/M mode is not 0b11" unless modrm.mode != 3
-			@args.push modrm.xmm_register_or_memory
-		when 0x0F90..0x0F9F
-			@func = "set"
-			@size = 1
-			@args.push modrm.register_or_memory
-			encode_value(condition_is_met(@opcode % 16) ? 1 : 0)
-		else
-			if @@mm_xmm_reg_regmem_opcodes.key? @opcode
-				# TODO: add support of VEX/EVEX
-				arr = @@mm_xmm_reg_regmem_opcodes[@opcode]
-				@func = arr[0]
-				@xmm_item_size = arr[1]
-				@size = mm_or_xmm_operand_size
-				@args.push modrm.mm_or_xmm_register
-				@args.push modrm.mm_or_xmm_register_or_memory
-			elsif @@mm_xmm_reg_regmem_opcodes_signed.key? @opcode
-				# TODO: add support of VEX/EVEX
-				arr = @@mm_xmm_reg_regmem_opcodes_signed[@opcode]
-				@func = arr[0]
-				@xmm_item_size = arr[1]
-				@size = mm_or_xmm_operand_size
-				@args.push modrm.mm_or_xmm_register
-				@args.push modrm.mm_or_xmm_register_or_memory
-			elsif @@unified_opcode_table.key? @opcode
-				arr = @@unified_opcode_table[@opcode]
-				decode_arguments arr
+		elif self.opcode == 0x0FD7:
+			self.func = "pmovmsk"
+			self.size = 4
+			self.args.append(self.modrm().register())
+			size = self.mm_or_xmm_operand_size()
+			self.modrm().operand_size = self.size
+			self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+		elif self.opcode == 0x0FF0:
+			if not self.prefix.repne:
+				raise "F2 prefix expected"
+			self.func = "mov"
+			self.size = 16
+			self.args.append(self.modrm().xmm_register())
+			if self.modrm().mode() != 3
+				raise "register expected, but ModR/M mode is not 0b11" 
+			self.args().append(self.modrm().xmm_register_or_memory())
+		elif self.opcode >= 0x0F90 and self.opcode <= 0x0F9F:
+			self.func = "set"
+			self.size = 1
+			self.args.append(self.modrm().register_or_memory())
+			if self.condition_is_met(self.opcode % 16):
+				self.encode_value(1)
+			else:
+				self.encode_value(0)
+		else:
+			if self.opcode in mm_xmm_reg_regmem_opcodes:
+				arr = mm_xmm_reg_regmem_opcodes[self.opcode]
+				self.func = arr[0]
+				self.xmm_item_size = arr[1]
+				self.size = mm_or_xmm_operand_size
+				self.args.append(self.modrm().mm_or_xmm_register())
+				self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+			elif self.opcode in mm_xmm_reg_regmem_opcodes_signed:
+				arr = mm_xmm_reg_regmem_opcodes_signed[self.opcode]
+				self.func = arr[0]
+				self.xmm_item_size = arr[1]
+				self.size = self.mm_or_xmm_operand_size()
+				self.args.append(self.modrm().mm_or_xmm_register())
+				self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+			elif self.opcode in unified_opcode_table:
+				arr = unified_opcode_table[self.opcode]
+				self.decode_arguments(arr)
 			elif self.opcode in opcodes_with_extenstions:
 				ext = self.modrm().opcode_ext()
 				if ext in opcodes_with_extenstions[self.opcode]:
@@ -411,11 +435,8 @@ class Instruction:
 					self.decode_arguments(arr)
 				else:
 					raise "unspecified simd prefix"
-			else
-				raise "not implemented: opcode 0x%x" % @opcode
-			end
-		end
-	end
+			else:
+				raise "not implemented: opcode 0x%x" % self.opcode
 	
 	def decode_arguments(self, arr):
 		# size needs to be decoded first in case opcode extension is used
@@ -462,350 +483,377 @@ class Instruction:
 			else:
 				raise "unknown argument: %s" % arg
 
-	def mm_or_xmm_operand_size
-		# TODO: add support of VEX/EVEX
-		return @prefix.operand_size_overridden ? 16 : 8
-	end
+	def mm_or_xmm_operand_size(self):
+		if self.prefix.operand_size_overridden:
+			return 16
+		else:
+			return 8
 
-	def encode_regiser(reg)
-		@args.push Pointer.new(@cpu.register[reg], 0, @size)
-	end
+	def encode_regiser(self, reg):
+		self.args.append(Pointer(self.cpu.register[reg], 0, self.size)
 
-	def encode_accumulator
-		encode_regiser(0)
-	end
+	def encode_accumulator(self):
+		self.encode_regiser(0)
 
-	def encode_counter
-		encode_regiser(1)
-	end
+	def encode_counter(self):
+		self.encode_regiser(1)
 
-	def decode_register_from_opcode
-		reg = (@opcode % 8) + 8 * @prefix.rex_b
-		@args.push Pointer.new(@cpu.register[reg], 0, @size)
-	end
+	def decode_register_from_opcode(self):
+		reg = (self.opcode % 8) + 8 * self.prefix.rex_b
+		self.encode_register(reg)		
 	
-	def decode_immediate(size = @size)
-		@args.push @stream.read_signed_pointer(size)
-	end
+	def decode_immediate(self, size = self.size):
+		self.args.append(self.stream.read_signed_pointer(size))
 
-	def decode_immediate_16or32
-		size = @size == 8 ? 4 : @size
+	def decode_immediate_16or32(self):
+		size = min(self.size, 4)
 		decode_immediate(size)
-	end
 	
-	def encode_value(value, size = @size)
-		size = size.nil? ? 8 : size
-		@args.push ConstBuffer.new(value, size).ptr
-	end
+	def encode_value(value, size = self.size):
+		if self.size == None:
+			size = 8
+		self.args.append(ConstBuffer(value, size).ptr())
 	
-	def decode_relative_address(size)
-		rel = @stream.read_pointer(size).read_signed
-		encode_value(@cpu.rip + rel)
-	end
+	def decode_relative_address(self, size):
+		rel = self.stream.read_pointer(size).read_signed()
+		encode_value(self.cpu.rip + rel)
 
-	def modrm
-		parse_modrm if @modrm.nil?
-		@modrm
-	end
+	def modrm(self)
+		if self._modrm == None:
+			self.parse_modrm()
+		return self._modrm
 
-	def parse_modrm
-		address_size = @prefix.address_size_overridden ? 4 : 8
-		@modrm = ModRM_Parser.new(@stream, @prefix, @cpu, @size, address_size, segment_offset)
-	end
+	def parse_modrm(self):
+		address_size = 8
+		if self.prefix.address_size_overridden:
+			address_size = 4
 
-	def unspecified_opcode_extension
-		raise "Unspecified opcode extension %d for opcode 0x%X" % [modrm.opcode_ext, @opcode]
-	end
+		self._modrm = ModRM_Parser(self.stream, self.prefix, self.cpu, self.size, address_size, segment_offset)
 
-	def max_address
-		return 256 ** @address_size
-	end
+	def unspecified_opcode_extension(self):
+		raise "Unspecified opcode extension %d for opcode 0x%X" % [self.modrm().opcode_ext(), self.opcode]
 
-	def read_opcode(stream)
-		byte1 = stream.read
-		if byte1 == 0x0F
-			byte2 = stream.read
-			case byte2
-			when 0x38
-				byte3 = stream.read
+	def max_address(self):
+		return 256 ** self.address_size
+
+	def read_opcode(self, stream)
+		byte1 = stream.read()
+		if byte1 == 0x0F:
+			byte2 = stream.read()
+			if byte2 ==  0x38:
+				byte3 = stream.read()
 				return 0x0F3800 + byte3
-			when 0x3A
-				byte3 = stream.read
+			elif byte2 == 0x3A:
+				byte3 = stream.read()
 				return 0x0F3A00 + byte3
-			else
+			else:
 				return 0x0F00 + byte2
-			end
-		else
+		else:
 			return byte1
-		end
-	end
 	
-	def condition_is_met(cond = @cond)
-		case cond
-		when nil
-			return true
-		when 0
-			return @cpu.flags.o
-		when 1
-			return !@cpu.flags.o
-		when 2
-			return @cpu.flags.c
-		when 3
-			return !@cpu.flags.c
-		when 4
-			return @cpu.flags.z
-		when 5
-			return !@cpu.flags.z
-		when 6
-			return @cpu.flags.c && @cpu.flags.z
-		when 7
-			return !@cpu.flags.c && !@cpu.flags.z
-		when 8
-			return @cpu.flags.s
-		when 9
-			return !@cpu.flags.s
-		when 10
-			return @cpu.flags.p
-		when 11
-			return !@cpu.flags.p
-		when 12
-			return @cpu.flags.s != @cpu.flags.o
-		when 13
-			return @cpu.flags.s == @cpu.flags.o
-		when 14
-			return @cpu.flags.z && (@cpu.flags.s != @cpu.flags.o)
-		when 15
-			return !@cpu.flags.z && (@cpu.flags.s == @cpu.flags.o)
-		else
+	def condition_is_met(self, cond = @cond)
+		if cond == None:
+			return True
+		elif cond == 0:
+			return self.cpu.flags.o
+		elif cond == 1:
+			return !self.cpu.flags.o
+		elif cond == 2:
+			return self.cpu.flags.c
+		elif cond == 3:
+			return !self.cpu.flags.c
+		elif cond == 4:
+			return self.cpu.flags.z
+		elif cond == 5:
+			return !self.cpu.flags.z
+		elif cond == 6:
+			return self.cpu.flags.c && self.cpu.flags.z
+		elif cond == 7:
+			return !self.cpu.flags.c && !self.cpu.flags.z
+		elif cond == 8:
+			return self.cpu.flags.s
+		elif cond == 9:
+			return !self.cpu.flags.s
+		elif cond == 10:
+			return self.cpu.flags.p
+		elif cond == 11:
+			return !self.cpu.flags.p
+		elif cond == 12:
+			return self.cpu.flags.s != self.cpu.flags.o
+		elif cond == 13:
+			return self.cpu.flags.s == self.cpu.flags.o
+		elif cond == 14:
+			return self.cpu.flags.z && (self.cpu.flags.s != self.cpu.flags.o)
+		elif cond == 15:
+			return !self.cpu.flags.z && (self.cpu.flags.s == self.cpu.flags.o)
+		else:
 			raise "unexpected value of `cond`: %d" % cond
-		end
-	end
 	
-	def segment_offset
-		return @cpu.fs * 16 if @prefix.segment == "FS"
-		return @cpu.gs * 16 if @prefix.segment == "GS"
-		return 0 if @prefix.segment == "none"
-		raise "unexpected name of the segment: " + @prefix.segment
-	end
+	def segment_offset(self):
+		if self.prefix.segment == "FS":
+			return self.cpu.fs * 16 
+		if self.prefix.segment == "GS":
+			return self.cpu.gs * 16 
+ 		if self.prefix.segment == "none":
+			return 0
+		raise "unexpected name of the segment: " + self.prefix.segment
 	
-	def execute
-		puts "opcode: %x" % @opcode
-		puts @func
-		puts "condition: %s" % (@cond.nil? ? "none" : "%d" % @cond)
-		for arg in @args
+	def execute(self):
+		print("opcode: %x" % self.opcode)
+		print(self.func)
+		if self.cond == None:
+			print("condition: none")
+		else:
+			print("condition: %d" % self.cond)
+		for arg in self.args
 			puts "arg = %s pos=%x size=%d ==> %s" % [arg.mem.name, arg.pos, arg.size, arg.debug_value]
-		end
 
-		return unless condition_is_met
+		if not self.condition_is_met():
+			return
 
-		case @func
-		when "ins", "movs", "outs", "lods", "stos", "cmps", "scas"
-			return execute_string_instruction
-		when "lea"
-			raise "LEA & register-direct addressing mode" if modrm.mode == 0x03
-			@args[0].write_int @args[1].pos
-		when "mov", "set", "movap"
-			@args[0].write @args[1].read
-		when "movq" # used in moving data from the lowest bits of XMM to XMM/memory
-			@args[0].write_with_zero_extension @args[1].read
-		when "movsxd", "movsx"
-			@args[0].write_int @args[1].read_signed
-		when "movzx"
-			@args[0].write_int @args[1].read_int
-		when "xchg"
-			tmp = @args[1].read
-			@args[1].write @args[0].read
-			@args[0].write tmp
-		when "pop"
-			@args[0].write @cpu.stack.pop @size
-		when "push"
-			@cpu.stack.push @args[0].read
-		when "call"
-			@cpu.stack.push [@cpu.rip].pack("Q<").unpack("C*")
-			@cpu.rip = @args[0].read_int
-		when "retn"
-			@cpu.rip = @cpu.stack.pop(8).pack("C*").unpack("Q<")[0]
-			@cpu.stack.pop(@args[0].read_int)
-		when "syscall"
-			syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
-			@linux.handle_syscall(syscall_number, [
-				@cpu.register[7].read(0, 8).pack("C*").unpack("Q<")[0],
-				@cpu.register[6].read(0, 8).pack("C*").unpack("Q<")[0],
-				@cpu.register[2].read(0, 8).pack("C*").unpack("Q<")[0],
-				@cpu.register[10].read(0, 8).pack("C*").unpack("Q<")[0],
-				@cpu.register[8].read(0, 8).pack("C*").unpack("Q<")[0],
-				@cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
-			])
-		when 'xor'
-			value = @args[0].read_int ^ @args[1].read_int
-			@args[0].write_int value
-			update_flags("...sz.p.", value, @args[0].size)
-			@cpu.flags.o = false
-			@cpu.flags.c = false
-		when 'or'
-			value = @args[0].read_int | @args[1].read_int
-			@args[0].write_int value
-			update_flags("...sz.p.", value, @args[0].size)
-			@cpu.flags.o = false
-			@cpu.flags.c = false
-		when 'and', 'test'
-			value = @args[0].read_int & @args[1].read_int
-			@args[0].write_int(value) if @func == 'and'
-			update_flags("...sz.p.", value, @args[0].size)
-			@cpu.flags.o = false
-			@cpu.flags.c = false
-		when 'add', 'adc', 'inc'
-			highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
-			highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
+		args = self.args
+		func = self.func
+
+		if func in ["ins", "movs", "outs", "lods", "stos", "cmps", "scas"]:
+			return self.execute_string_instruction()
+		elif func ==  "lea":
+			if self.modrm().mode() == 0x03:
+				raise "LEA & register-direct addressing mode"
+			args[0].write_int(args[1].pos)
+		elif func in ["mov", "set", "movap"]:
+			args[0].write(args[1].read())
+		elif func == "movq": # used in moving data from the lowest bits of XMM to XMM/memory
+			args[0].write_with_zero_extension(args[1].read())
+		elif func in ["movsxd", "movsx"]:
+			args[0].write_int(args[1].read_signed())
+		elif func == "movzx":
+			args[0].write_int(args[1].read_int())
+		elif func == "xchg":
+			tmp = args[1].read()
+			args[1].write(args[0].read())
+			args[0].write(tmp)
+		elif func == "pop":
+			args[0].write(self.cpu.stack.pop(self.size))
+		elif func == "push":
+			self.cpu.stack.push(args[0].read())
+		elif func == "call":
+			raise "not converted from ruby"
+			# @cpu.stack.push [@cpu.rip].pack("Q<").unpack("C*")
+			# @cpu.rip = @args[0].read_int
+		elif func == "retn":
+			raise "not converted from ruby"
+			# @cpu.rip = @cpu.stack.pop(8).pack("C*").unpack("Q<")[0]
+			# @cpu.stack.pop(@args[0].read_int)
+		elif func == "syscall":
+			raise "not converted from ruby"
+			# syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
+			# @linux.handle_syscall(syscall_number, [
+			#	@cpu.register[7].read(0, 8).pack("C*").unpack("Q<")[0],
+			#	@cpu.register[6].read(0, 8).pack("C*").unpack("Q<")[0],
+			#	@cpu.register[2].read(0, 8).pack("C*").unpack("Q<")[0],
+			#	@cpu.register[10].read(0, 8).pack("C*").unpack("Q<")[0],
+			#	@cpu.register[8].read(0, 8).pack("C*").unpack("Q<")[0],
+			#	@cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
+			#])
+		elif func == 'xor':
+			value = args[0].read_int() ^ args[1].read_int()
+			args[0].write_int(value)
+			self.update_flags("...sz.p.", value, args[0].size)
+			self.cpu.flags.o = 0
+			self.cpu.flags.c = 0
+		elif func == 'or':
+			value = args[0].read_int() | args[1].read_int()
+			args[0].write_int(value)
+			self.update_flags("...sz.p.", value, args[0].size)
+			self.cpu.flags.o = 0
+			self.cpu.flags.c = 0
+		elif func in ['and', 'test']:
+			value = args[0].read_int() & args[1].read_int()
+			if func == 'and':
+				args[0].write_int(value)
+			self.update_flags("...sz.p.", value, args[0].size)
+			self.cpu.flags.o = 0
+			self.cpu.flags.c = 0
+		elif func in ['add', 'adc', 'inc']:
+			highest_bit1 = Utils.highest_bit_set(args[0].read_int(), args[0].size)
+			highest_bit2 = Utils.highest_bit_set(args[1].read_int(), args[1].size)
 			
-			cf = ((@func == 'adc') && @cpu.flags.c) ? 1 : 0
-			value = @args[0].read_int + @args[1].read_signed + cf
-			@args[0].write_int value
+			cf = 0
+			if (func == 'adc') and self.cpu.flags.c:
+				cf = 1
 
-			@cpu.flags.c = value >= 2 ** (8 * @args[0].size) unless @func == "inc"
+			value = args[0].read_int() + args[1].read_signed() + cf
+			args[0].write_int(value)
 
-			highest_res  = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
+			if func != 'inc':
+				self.cpu.flags.c = value >= 2 ** (8 * args[0].size)
+
+			highest_res = Utils.highest_bit_set(args[0].read_int(), args[0].size)
 			
-			@cpu.flags.o = (highest_res && !highest_bit1 && !highest_bit2) ||
-			               (!highest_res && highest_bit1 && highest_bit2)
+			cpu.flags.o = (highest_res && !highest_bit1 && !highest_bit2) ||
+			              (!highest_res && highest_bit1 && highest_bit2)
 
-			update_flags("...sz.p.", value, @args[0].size)
-			# TODO: @cpu.flags.a
-		when 'sub', 'sbb', 'cmp', 'dec', 'neg'
-			highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
-			highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
+			self.update_flags("...sz.p.", value, args[0].size)
+		elif func in ['sub', 'sbb', 'cmp', 'dec', 'neg']:
+			highest_bit1 = Utils.highest_bit_set(args[0].read_int(), args[0].size)
+			highest_bit2 = Utils.highest_bit_set(args[1].read_int(), args[1].size)
 
-			cf = ((@func == 'sbb') && @cpu.flags.c) ? 1 : 0
-			value = @args[0].read_int - @args[1].read_signed - cf
-			@args[@func == 'neg' ? 1 : 0].write_int(value) unless @func == 'cmp'
-			update_flags("...sz.p.", value, @args[0].size)
+			cf = 0
+			if func == 'sbb':
+				cf = cpu.flags.c
+			value = args[0].read_int() - args[1].read_signed() - cf
 
-			@cpu.flags.c = value < 0 unless @func == "dec"
+			dest_idx = 0
+			if func == 'neg':
+				dest_idx = 1
+
+			if func != 'cmp':
+				args[dest_idx].write_int(value)
+
+			self.update_flags("...sz.p.", value, args[0].size)
+
+			if func != 'dec':
+				cpu.flags.c = value < 0
 
 			highest_res = value[2 ** (8 * @size - 1)] == 1
-			@cpu.flags.o = (!highest_bit1 && highest_bit2 && highest_res) ||
-			               (highest_bit1 && !highest_bit2 && !highest_res)
-			# TODO: @cpu.flags.a
-		when 'xadd'
-			@func = 'xchg'
-			execute
-			@func = 'add'
-			execute
-		when 'div'
-			"div not implemented for size = 1" if @size == 1
-			rax = Pointer.new(@cpu.register[0], 0, @size)
-			rdx = Pointer.new(@cpu.register[2], 0, @size)
-			dividend = (256 ** @size) * rdx.read_int + rax.read_int
-			divisor = @args[0].read_int
-			if divisor == 0
+			self.cpu.flags.o = (!highest_bit1 && highest_bit2 && highest_res) ||
+			                   (highest_bit1 && !highest_bit2 && !highest_res)
+		elif func == 'xadd':
+			self.func = 'xchg'
+			self.execute()
+			self.func = 'add'
+			self.execute()
+		elif func == 'div':
+			if self.size == 1:
+				raise "div not implemented for size = 1"
+			rax = Pointer(self.cpu.register[0], 0, self.size)
+			rdx = Pointer(self.cpu.register[2], 0, self.size)
+			dividend = (256 ** self.size) * rdx.read_int() + rax.read_int()
+			divisor = args[0].read_int()
+			if divisor == 0:
 				raise "divide error exception: divisor = 0"
-			end
+
 			quotient = dividend / divisor
 			remainder = dividend % divisor
-			if quotient >= 256 ** @size
+			if quotient >= 256 ** self.size
 				raise "divide error exception: quotient too big: %d (dec) / %x (hex)" % [quotient, quotient]
-			end
-			rax.write_int quotient
-			rdx.write_int remainder
-		when 'imul'
-			case @args.length
-			when 1
+
+			rax.write_int(quotient)
+			rdx.write_int(remainder)
+		elif func == 'imul':
+			if len(args) == 1:
 				raise "not implemented"
-			when 2
-				@args = [@args[0]] + @args
-			when 3
-				# do nothing
-			end
-			value = @args[1].read_signed * @args[2].read_signed
-			@args[0].write_int value
-			@cpu.flags.c = (value < -(2**(8*@size-1)) || (value >= 2**(8*@size-1)))
-			@cpu.flags.o = @cpu.flags.c
-		when 'bsf'
-			@cpu.flags.z = @args[1].read_int == 0
-			@args[0].write_int @args[1].read_bit_array.index(1) unless @cpu.flags.z
-		when 'bsr'
-			@cpu.flags.z = @args[1].read_int == 0
-			@args[0].write_int @args[1].read_bit_array.rindex(1) unless @cpu.flags.z
-		when "rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"
-			times = @args[1].read_int % (2 ** @size)
-			bit_array = @args[0].read_bit_array
-			times.times do
-				case @func
-				when "rol"
-					highest_bit = @args[0].highest_bit
-					@args[0].write_int(@args[0].read_int * 2 + highest_bit)
-					@cpu.flags.c = highest_bit == 1
-					@cpu.flags.o = @cpu.flags.c ^ (@args[0].highest_bit == 1)
-				when "ror"
-					orig_highest_bit = @args[0].highest_bit
-					value = @args[0].read_int
-					@cpu.flags.c = value & 1 == 1
-					@args[0].write_int(value / 2)
-					@cpu.flags.o = orig_highest_bit == 1
-				when "rcl"
-					bit_array.shift(@cpu.flags.c ? 1 : 0)
-					@cpu.flags.c = (bit_array.pop) == 1
-					@cpu.flags.o = @cpu.flags.c ^ (bit_array[-1] == 1)
-					@args[0].write_bit_array bit_array					
-				when "rcr"
-					bit_array.push(@cpu.flags.c ? 1 : 0)
-					@cpu.flags.c = (bit_array.unshift) == 1
-					@cpu.flags.o = bit_array[-1] != bit_array[-2]
-					@args[0].write_bit_array bit_array					
-				when "shr", "sar"
+			elif len(args) == 2:
+				args = [args[0]] + args
+			elif len(args) == 3:
+				pass
+
+			value = args[1].read_signed() * args[2].read_signed()
+			args[0].write_int(value)
+
+			size = self.size
+			self.cpu.flags.c = (value < -(2**(8*size-1)) || (value >= 2**(8*size-1)))
+			self.cpu.flags.o = self.cpu.flags.c
+		elif func == 'bsf':
+			self.cpu.flags.z = args[1].read_int() == 0
+			if not self.cpu.flags.z:
+				args[0].write_int(args[1].read_bit_array()[1])
+		elif func == 'bsr':
+			self.cpu.flags.z = args[1].read_int() == 0
+			if not self.cpu.flags.z:
+				args[0].write_int(args[1].read_bit_array()[-1])
+		if func in ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"]:
+			times = args[1].read_int() % (2 ** self.size)
+			bit_array = args[0].read_bit_array()
+			for i in range(times):
+				if func == "rol":
+					highest_bit = args[0].highest_bit()
+					args[0].write_int(args[0].read_int() * 2 + highest_bit)
+					self.cpu.flags.c = highest_bit == 1
+					self.cpu.flags.o = self.cpu.flags.c ^ (args[0].highest_bit == 1)
+				elif func == "ror":
+					orig_highest_bit = args[0].highest_bit()
+					value = args[0].read_int()
+					self.cpu.flags.c = value & 1
+					args[0].write_int(value / 2)
+					self.cpu.flags.o = orig_highest_bit == 1
+				elif func == "rcl":
+					bit_array.shift(cpu.flags.c)
+					self.cpu.flags.c = bit_array.pop() == 1
+					self.cpu.flags.o = cpu.flags.c ^ (bit_array[-1] == 1)
+					args[0].write_bit_array(bit_array)
+				elif func == "rcr":
+					bit_array.push(cpu.flags.c)
+					self.cpu.flags.c = bit_array.unshift() == 1
+					self.cpu.flags.o = bit_array[-1] != bit_array[-2]
+					args[0].write_bit_array(bit_array)
+				elif func in ["shr", "sar"]:
 					orig_highest_bit = bit_array[-1]
-					bit_array.push(@func == "shr" ? 0 : bit_array[-1])
-					@cpu.flags.c = bit_array.shift == 1
-					@cpu.flags.o = (@func == "shr" ? orig_highest_bit == 1 : false) if times == 1
-					@args[0].write_bit_array bit_array
-				when "shl", "sal"
-					bit_array.unshift 0
-					@cpu.flags.c = bit_array.pop == 1
-					@cpu.flags.o = @cpu.flags.c != (bit_array[-1] == 1) if times == 1
-					@args[0].write_bit_array bit_array
-				else
-					raise "function not implemented: " + @func
-				end
-			end
-		when 'jmp'
-			jump @args[0]
-		when 'loop', 'loopz', 'loopnz'
-			rcx = @args[0]
-			rcx.write_int(rcx.read_int - 1)
-			return if rcx.read_int == 0
-			jump @args[1] if @func == "loop"
-			jump @args[1] if (@func == "loopz") && @cpu.flags.z
-			jump @args[1] if (@func == "loopnz") && !@cpu.flags.z
-		when 'sahf'
-			ah = @cpu.register[0].read(1, 1)[0]
-			@cpu.flags.c = ah[0] == 1
-			@cpu.flags.p = ah[2] == 1
-			@cpu.flags.a = ah[4] == 1
-			@cpu.flags.z = ah[6] == 1
-			@cpu.flags.s = ah[7] == 1
-		when 'lahf'
+					if func == "shr":
+						bit_array.push(0)
+					else:
+						bit_array.push(bit_array[-1])
+					self.cpu.flags.c = bit_array.shift == 1
+					if times == 1:
+						self.cpu.flags.o = (func == "shr") && orig_highest_bit
+					args[0].write_bit_array(bit_array)
+				if func in  ["shl", "sal"]:
+					bit_array.unshift(0)
+					self.cpu.flags.c = bit_array.pop == 1
+					if times == 1:
+						self.cpu.flags.o = self.cpu.flags.c != (bit_array[-1] == 1)
+					args[0].write_bit_array(bit_array)
+		elif func == 'jmp':
+			self.jump(args[0])
+		elif func in ['loop', 'loopz', 'loopnz']:
+			rcx = self.args[0]
+			rcx.write_int(rcx.read_int() - 1)
+			if rcx.read_int == 0:
+				return
+
+			will_jump = False
+			if func == "loop":
+				will_jump = True
+			elif (func == "loopz") && self.cpu.flags.z:
+				will_jump = True
+			elif (func == "loopnz") && !self.cpu.flags.z:
+				will_jump = True
+
+			if will_jump:
+				self.jump(args[1])
+
+		elif func == 'sahf':
+			ah = self.cpu.register[0].read(1, 1)[0]
+			self.cpu.flags.c = ah[0] == 1
+			self.cpu.flags.p = ah[2] == 1
+			self.cpu.flags.a = ah[4] == 1
+			self.cpu.flags.z = ah[6] == 1
+			self.cpu.flags.s = ah[7] == 1
+		elif func == 'lahf':
 			ah = 0
-			ah += @cpu.flags.c ? 1 : 0
+			ah += self.cpu.flags.c
 			ah += 2
-			ah += @cpu.flags.p ? 4 : 0
-			ah += @cpu.flags.a ? 16 : 0
-			ah += @cpu.flags.z ? 64 : 0
-			ah += @cpu.flags.s ? 128 : 0
-			@cpu.register[0].write(1, [ah])
-		when 'cpuid'
+			ah += self.cpu.flags.p * 4
+			ah += self.cpu.flags.a * 16
+			ah += self.cpu.flags.z * 64
+			ah += self.cpu.flags.s * 128
+			self.cpu.register[0].write(1, [ah])
+		elif func == 'cpuid':
 			# Do nothing
-		when 'cmc' # Complement Carry Flag
-			@cpu.flags.c = !@cpu.flags.c
-		when 'clc', # Clear Carry Flag
-			@cpu.flags.c = false
-		when 'stc', # Set Carry Flag
-			@cpu.flags.c = true
-		when 'cld', # Clear Direction Flag
-			@cpu.flags.d = false
-		when 'std', # Set Direction Flag
-			@cpu.flags.d = true
-		when 'nop', 'pause', "hint_nop"
+			pass
+		elif func == 'cmc': # Complement Carry Flag
+			self.cpu.flags.c = !self.cpu.flags.c
+		elif func == 'clc': # Clear Carry Flag
+			self.cpu.flags.c = False
+		elif func == 'stc': # Set Carry Flag
+			self.cpu.flags.c = True
+		elif func == 'cld': # Clear Direction Flag
+			self.cpu.flags.d = False
+		elif func == 'std': # Set Direction Flag
+			self.cpu.flags.d = True
+		elif func in ['nop', 'pause', "hint_nop"]:
 			# do nothing
+			pass
 		when "pcmpeq"
 			for_each_xmm_item(lambda{|dest, arg| dest == arg ? -1: 0})
 		when "pxor"
