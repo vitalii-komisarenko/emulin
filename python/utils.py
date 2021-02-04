@@ -1,21 +1,14 @@
-class Utils
-	def self.resize(arr, size)
-		if arr.length > size
-			return arr.slice(0, size)
-		elsif arr.length < size
-			ret = arr
-			while ret.length < size
-				ret.push(0)
-				return ret
-			end
-		else
-			return arr
-		end
-	end
-	
-	def self.highest_bit_set(value, size)
-		arr = [value].pack("Q<").unpack("C*")
-		arr = Utils.resize(arr, size)
-		return arr[arr.length-1] & 0x80 != 0
-	end
-end
+class Utils:
+    def resize(arr, size):
+        if len(arr) > size:
+            return arr[:size]
+        elif len(arr) < size:
+            ret = arr
+            while len(ret) < size:
+                ret.append(0)
+                return ret
+        else:
+            return arr
+
+    def highest_bit_set(value, size):
+        return value & (1 << (8 ** size - 1))
