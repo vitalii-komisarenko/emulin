@@ -67,6 +67,9 @@ class InstructionPrefix:
 		if len(arr) > 1:
 			raise "only one SIMD prefix expected, but several provided"
 
+		if len(arr) == 0:
+			return 0x00
+
 		return arr[0]
 
 class Instruction:
@@ -231,15 +234,6 @@ class Instruction:
 			else
 				raise "opcode extension not implemented for opcode 0xFF: %d" % modrm.opcode_ext
 			end
-		when 0x0F10..0x0F11
-			if @prefix.operand_size_overridden || @prefix.repe || @prefix.repne
-				raise "not implemented"
-			end
-			@func = "mov"
-			@size = 16
-			@args.push modrm.mm_or_xmm_register
-			@args.push modrm.mm_or_xmm_register_or_memory
-			@args = [@args[1], @args[0]] if @opcode == 0x0F11
 		when 0x0F12
 			raise "not implemtented" unless @prefix.simd_prefix == 0x66
 			@func = "mov"
@@ -259,30 +253,12 @@ class Instruction:
 			@size = multi_byte == 8 ? 4 : multi_byte
 			@func = (@opcode == 0x0F1F) && (modrm.opcode_ext == 0) ? "nop" : "hint_nop"
 			@args.push modrm.register_or_memory
-		when 0x0F28
-			@func = "movap"
-			@size = 16
-			@args.push modrm.mm_or_xmm_register
-			@args.push modrm.mm_or_xmm_register_or_memory
-		when 0x0F29
-			@func = "movap"
-			@size = 16
-			@args.push modrm.mm_or_xmm_register_or_memory
-			@args.push modrm.mm_or_xmm_register
 		when 0x0F40..0x0F4F
 			@func = "mov"
 			@cond = @opcode % 16
 			@size = multi_byte
 			@args.push modrm.register
 			@args.push modrm.register_or_memory
-		when 0x0F6C, 0x0F6D
-			# TODO: add support of VEX/EVEX
-			@func = @opcode == 0x0F6C ? "punpckl" : "punpckh"
-			raise "missing operand-size override prefix" unless @prefix.operand_size_overridden
-			@size = 16
-			@xmm_item_size = 8
-			@args.push modrm.mm_or_xmm_register
-			@args.push modrm.mm_or_xmm_register_or_memory
 		when 0x0F6E
 			@func = "movq"
 			@size = mm_or_xmm_operand_size
@@ -428,6 +404,13 @@ class Instruction:
 					self.decode_arguments(arr)
 				else:
 					self.unspecified_opcode_extension()
+			elif self.opcode in opcodes_with_simd_prefix:
+				simd_prefix = self.prefix.simd_prefix
+				if simd_prefix in opcodes_with_simd_prefix[self.opcode]:
+					arr = opcodes_with_simd_prefix[self.opcode][simd_prefix]
+					self.decode_arguments(arr)
+				else:
+					raise "unspecified simd prefix"
 			else
 				raise "not implemented: opcode 0x%x" % @opcode
 			end
@@ -443,6 +426,8 @@ class Instruction:
 			self.size = 1
 		elif size == LONG:
 			self.size = multi_byte()
+		elif size == SIMD_16:
+			self.size = 16
 
 		self.func = arr[0]
 		if self.func == "#ROTATE/SHIFT":
@@ -453,9 +438,15 @@ class Instruction:
 		args = arr[2:]
 		for arg in args:
 			if arg == REG:
-				self.args.append(self.modrm.register())
+				self.args.append(self.modrm().register())
 			elif arg == R_M:
-				self.args.append(self.modrm.register_or_memory())
+				self.args.append(self.modrm().register_or_memory())
+			elif arg == SIMD_REG:
+				self.args.append(self.modrm().mm_or_xmm_register())
+			elif arg == SIMD_REGMEM:
+				self.args.append(self.modrm().mm_or_xmm_register_or_memory())
+			elif arg == SIMD_ITEM_8:
+				self.xmm_item_size = 8
 			elif arg == ACC:
 				self.encode_accumulator()
 			elif arg == IM1:
@@ -1056,8 +1047,11 @@ class Instruction:
 	}
 
 	# operation size
-	BYTE = "s=1"     # 1 byte
-	LONG = "s=2/4/8" # 2/4/8 bytes
+	BYTE = "s=1"       # 1 byte
+	LONG = "s=2/4/8"   # 2/4/8 bytes
+	SIMD_16 = "simd16" # 16 bytes, XMM
+
+	SIMD_ITEM_8 = "simd item size = 8"
 
 	# arguments
 	REG = "r"    # register
@@ -1147,7 +1141,31 @@ class Instruction:
 			7: [NOT_IMPLEMENTED],
 		}
 	}
-end
+
+	opcodes_with_simd_prefix = {
+		0x0F10: {
+			0x00: ["mov", SIMD_16, SIMD_REG, SIMD_REGMEM],
+			0xF3: [NOT_IMPLEMENTED],
+			0x66: [NOT_IMPLEMENTED],
+			0xF2: [NOT_IMPLEMENTED],
+		},
+		0x0F11: {
+			0x00: ["mov", SIMD_16, SIMD_REGMEM, SIMD_REG],
+			0xF3: [NOT_IMPLEMENTED],
+			0x66: [NOT_IMPLEMENTED],
+			0xF2: [NOT_IMPLEMENTED],
+		},
+		0x0F28: {
+			0x00: ["movap", SIMD_16, SIMD_REG, SIMD_REGMEM],
+			0x66: ["movap", SIMD_16, SIMD_REG, SIMD_REGMEM],
+		},
+		0x0F29: {
+			0x00: ["movap", SIMD_16, SIMD_REGMEM, SIMD_REG],
+			0x66: ["movap", SIMD_16, SIMD_REGMEM, SIMD_REG],
+		},
+		0x0F6C: { 0x66: ["punpckl", SIMD_16, SIMD_ITEM_8, SIMD_REG, SIMD_REGMEM]},
+		0x0F6D: { 0x66: ["punpckh", SIMD_16, SIMD_ITEM_8, SIMD_REG, SIMD_REGMEM]},
+	}
 
 class ModRM_Parser
 	attr_accessor :operand_size
