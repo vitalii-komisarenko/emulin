@@ -1,21 +1,16 @@
-require_relative "pointer"
+from pointer import Pointer
 
-class Stack
-	attr_reader :pos
 
-	def initialize(mem, stack_buttom)
-		@mem = mem
-		@pos = stack_buttom
-	end
-	
-	def push(data)
-		@pos -= data.length
-		Pointer.new(@mem, @pos, data.length).write(data)
-	end
-	
-	def pop(size)
-		ret = Pointer.new(@mem, @pos, size).read
-		@pos += size
-		return ret
-	end
-end
+class Stack:
+    def __init__(self, mem, stack_buttom):
+        self.mem = mem
+        self.pos = stack_buttom
+
+    def push(self, data):
+        self.pos -= len(data)
+        Pointer(self.mem, self.pos, data.length).write(data)
+
+    def pop(self, size):
+        ret = Pointer(self.mem, self.pos, size).read()
+        self.pos += size
+        return ret
