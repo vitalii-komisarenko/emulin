@@ -1,2 +1,3 @@
 *.class
 progs_to_test/bin
+__pycache__
