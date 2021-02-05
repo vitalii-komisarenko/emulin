@@ -1,34 +1,25 @@
-require_relative "addressable"
-require_relative "pointer"
+from pointer import Pointer, PointerSigned
 
-class Stream
-	attr_accessor :pos
-	attr_reader :mem
 
-	def initialize(memory, pos)
-		@mem = memory
-		@pos = pos
-	end
-	
-	def read()
-		ret = @mem.read(@pos, 1)[0]
-		@pos += 1
-		return ret
-	end
-	
-	def back()
-		@pos -= 1
-	end
-	
-	def read_pointer(size)
-		res = Pointer.new(@mem, @pos, size)
-		@pos += size
-		return res
-	end
+class Stream:
+    def __inti__(self, memory, pos):
+        self.mem = memory
+        self.pos = pos
 
-	def read_signed_pointer(size)
-		res = Pointer.new(@mem, @pos, size)
-		@pos += size
-		return res
-	end
-end
+    def read(self):
+        ret = self.mem.read(self.pos, 1)[0]
+        self.pos += 1
+        return ret
+
+    def back(self):
+        self.pos -= 1
+
+    def read_pointer(self, size):
+        res = Pointer(self.mem, self.pos, size)
+        self.pos += size
+        return res
+
+    def read_signed_pointer(self, size):
+        res = PointerSigned(self.mem, self.pos, size)
+        self.pos += size
+        return res
