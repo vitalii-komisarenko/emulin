@@ -1,84 +1,70 @@
-require_relative "stream"
-require_relative "instruction"
-require_relative "register"
-require_relative "stack"
+from stream import Stream
+from instruction import Instruction
+from register import Register
+from stack import Stack
 
-class Cpu
-	attr_reader :register, :mm_register, :xmm_register
-	attr_writer :linux
-	attr_accessor :stopped, :flags, :stack, :mem_stream, :fs, :gs
-	
-	def initialize(mem, entry_point, stack_bottom)
-		@register = []
-		@mm_register = []
-		@xmm_register = []
-		@mem_stream = Stream.new(mem, entry_point)
-		@stopped = false
-		@flags = FlagsRegister.new
-		@stack = Stack.new(mem, stack_bottom)
-		@fs = 0
-		@gs = 0
-		for i in 0..15
-			reg = Register.new
+
+class Cpu:
+	def __init__(self, mem, entry_point, stack_bottom):
+		self.register = []
+		self.mm_register = []
+		self.xmm_register = []
+		self.mem_stream = Stream(mem, entry_point)
+		self.stopped = False
+		self.flags = FlagsRegister()
+		self.stack = Stack(mem, stack_bottom)
+		self.fs = 0
+		self.gs = 0
+		for i in range(16):
+			reg = Register()
 			reg.write(0, [i, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
-			reg.name = "reg #%d %s" % [i, @@reg_names[i]]
-			@register.push reg
-		end
+			reg.name = "reg #%d %s" % [i, reg_names[i]]
+			self.register.push(reg)
 
-		for i in 0..31
-			reg = MMRegister.new
+		for i in range(32):
+			reg = MMRegister()
 			reg.name = "mm #%d" % i
-			@mm_register.push reg
+			self.mm_register.push(reg)
 		end
 
-		for i in 0..31
-			reg = XMMRegister.new
+		for i in range(32):
+			reg = XMMRegister()
 			reg.name = "xmm #%d" % i
-			@xmm_register.push reg
-		end
-	end
-	
-	@@reg_names = ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
-	               "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"]
+			self.xmm_register.push(reg)
 
-	def rip
-		return @mem_stream.pos
-	end
+	reg_names = ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
+	             "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"]
+
+	def rip(self):
+		return self.mem_stream.pos
 
 	def rip=(new_rip)
 		@mem_stream.pos = new_rip
 	end
 	
-	def exectute_next_instruction
-		instruction = Instruction.new(@mem_stream, self, @linux)
-		instruction.execute
-	end
-end
+	def exectute_next_instruction(self):
+		instruction = Instruction(self.mem_stream, self, self.linux)
+		instruction.execute()
 
-class FlagsRegister
-	attr_accessor :o, :d, :i, :s, :z, :a, :p, :c
-
+class FlagsRegister:
 	def initialize
-		@o = false
-		@d = false
-		@i = false
-		@s = false
-		@z = false
-		@a = false
-		@p = false
-		@c = false
-	end
-	
-	def to_s
+		o = False
+		d = False
+		i = False
+		s = False
+		z = False
+		a = False
+		p = False
+		c = False
+
+	def __str__(self):
 		ret = ""
-		ret += @o ? 'o' : '-'
-		ret += @d ? 'd' : '-'
-		ret += @i ? 'i' : '-'
-		ret += @s ? 's' : '-'
-		ret += @z ? 'z' : '-'
-		ret += @a ? 'a' : '-'
-		ret += @p ? 'p' : '-'
-		ret += @c ? 'c' : '-'
+		ret += 'o' if self.o else '-'
+		ret += 'd' if self.d else '-'
+		ret += 'i' if self.i else '-'
+		ret += 's' if self.s else '-'
+		ret += 'z' if self.z else '-'
+		ret += 'a' if self.a else '-'
+		ret += 'p' if self.p else '-'
+		ret += 'c' if self.c else '-'
 		return ret
-	end
-end
