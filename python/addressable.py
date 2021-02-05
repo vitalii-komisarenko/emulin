@@ -11,7 +11,7 @@ class Addressable:
     def read(self, pos, size):
         res = []
         for i in range(size):
-            res.push(self.mem.get((pos + i) % self.MAX_ADDR, 0))
+            res.append(self.mem.get((pos + i) % self.MAX_ADDR, 0))
 
         return res
 
@@ -31,7 +31,7 @@ class Addressable:
         return res
 
     def write(self, pos, data):
-        for i in len(data):
+        for i in range(len(data)):
             self.mem[(pos + i) % self.MAX_ADDR] = data[i]
 
     def write_bit_array(self, pos, bitarray):

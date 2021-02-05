@@ -1,4 +1,6 @@
 from utils import Utils
+from memory import Memory
+import unittest
 
 
 class Pointer:
@@ -49,8 +51,7 @@ class Pointer:
         # write([value].pack(pack_scheme).unpack("C*"))
 
     def debug_value(self):
-        raise "not converted from ruby"
-        # read.reverse.map{|x| "%02X" % x}.join(":")
+        return ":".join(["%02X" % byte for byte in reversed(self.read())])
 
     def pack_scheme(self):
         raise "not converted from ruby"
@@ -98,3 +99,13 @@ class Pointer:
 class PointerSigned(Pointer):
     def read_int(self):
         return self.read_signed()
+
+
+class TestPointer(unittest.TestCase):
+    def test_debug_value(self):
+        mem = Memory()
+        pos = 123
+        size = 8
+        ptr = Pointer(mem, pos, size)
+        ptr.write([0, 0x1B, 0xCA, 0x44, 0x0E, 0x80, 0x7F, 0])
+        self.assertEqual(ptr.debug_value().upper(), '00:7F:80:0E:44:CA:1B:00')
