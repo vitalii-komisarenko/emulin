@@ -1,25 +1,20 @@
-require_relative "addressable"
-require_relative "pointer"
+from addressable import Addressable
+from pointer import Pointer
 
-class ConstBuffer < Addressable
-	def initialize(value, size = 8)
-		@in_init = true
-		@size = size
-		super()
-		Pointer.new(self, 0, size).write_int(value)
-		@name = "const"
-		@in_init = false
-	end
-	
-	def write(pos, data)
-		unless @in_init
-			raise "buffer is read-only"
-		end
-		
-		super
-	end
-	
-	def ptr
-		return Pointer.new(self, 0, @size)
-	end
-end
+
+class ConstBuffer(Addressable):
+    def __init__(self, value, size=8):
+        self.in_init = True
+        self.size = size
+        super().__init__(value, size)
+        Pointer(self, 0, size).write_int(value)
+        self.name = "const"
+        self.in_init = False
+
+    def write(self, pos, data):
+        if not self.in_init:
+            raise RuntimeError("buffer is read-only")
+        super().write(pos, data)
+
+    def ptr(self):
+        return Pointer(self, 0, self.size)
