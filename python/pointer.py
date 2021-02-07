@@ -1,5 +1,6 @@
 from utils import Utils
 from memory import Memory
+import struct
 import unittest
 
 
@@ -47,40 +48,11 @@ class Pointer:
         self.mem.write_bit_array(self.pos, data)
 
     def write_int(self, value):
-        raise "not converted from ruby"
-        # write([value].pack(pack_scheme).unpack("C*"))
+        scheme = {1: "<B", 2: "<H", 4: "<I", 8: "<Q"}
+        self.write(list(struct.pack(scheme[self.size], value)))
 
     def debug_value(self):
         return ":".join(["%02X" % byte for byte in reversed(self.read())])
-
-    def pack_scheme(self):
-        raise "not converted from ruby"
-        # case @size
-        # when 1
-        #     return "C"
-        # when 2
-        #    return "S<"
-        # when 4
-        #     return "L<"
-        # when 8
-        #     return "Q<"
-        # else
-        #    raise "bad size: %d" % size
-        # end
-
-    def pack_scheme_signed(self):
-        raise "not converted from ruby"
-        # case @size
-        # when 1
-        #    return "c"
-        # when 2
-        #     return "s<"
-        # when 4
-        #    return "l<"
-        # when 8
-        #     return "q<"
-        # else
-        #     raise "bad size: %d" % size
 
     def highest_bit(self):
         return Utils.highest_bit(self.read_int(), self.size)
