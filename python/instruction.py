@@ -118,7 +118,7 @@ class Instruction:
             self.func = "pop"
             self.size = self.multi_byte()
             self.decode_register_from_opcode()
-        elif self.opcode == 0x63
+        elif self.opcode == 0x63:
             self.func = "movsxd"
             self.size = self.multi_byte
             self.args.append(self.modrm.register())
@@ -171,8 +171,10 @@ class Instruction:
             else:
                 self.size = self.multi_byte()
 
-            self.func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][self.modrm().opcode_ext()]
-            self.args.append(self.modrm().register_or_memory()
+            funcs = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
+            self.func = funcs[self.modrm().opcode_ext()]
+
+            self.args.append(self.modrm().register_or_memory())
 
             if self.opcode == 0x81:
                 self.decode_immediate_16or32()
@@ -354,32 +356,33 @@ class Instruction:
             self.func = "movq"
             if not self.prefix.repe:
                 raise "not implemented"
-            self.size = 16 # It is a workaround. ModR/M uses size to distinguish
-                           # MMX and XMM registers
+            self.size = 16  # It is a workaround. ModR/M uses size
+                            # to distinguish  MMX and XMM registers
             self.args.append(self.modrm().mm_or_xmm_register())
             self.args[0].size = 8 # fix size
             self.args.append(self.modrm().mm_or_xmm_register_or_memory())
-            if self.modrm().mode() == 0x3 # points to a register
-                self.args[1].size = 16 # fix size
-            else
-                self.args[1].size = 8 # fix size
+            if self.modrm().mode() == 0x3:  # points to a register
+                self.args[1].size = 16  # fix size
+            else:
+                self.args[1].size = 8   # fix size
         elif self.opcode == 0x0F7F:
             self.func = "mov"
-            if self.prefix.operand_size_overridden || self.prefix.repe:
+            if self.prefix.operand_size_overridden or self.prefix.repe:
                 self.size = 16
             else:
                 self.size = 8
             self.args.append(self.modrm().mm_or_xmm_register_or_memory())
             self.args.append(self.modrm().mm_or_xmm_register())
         elif self.opcode == 0x0FD6:
-             if not self.prefix.operand_size_overridden:
+            if not self.prefix.operand_size_overridden:
                 raise "not implemented"
             self.func = "movq"
             self.size = 8
             self.args.append(self.modrm().xmm_register_or_memory())
             self.args.append(self.modrm.xmm_register())
             if self.modrm().mode() == 0x3: # points to a register
-                @args[1].size = 16 # to clear highest bits of the XMM register
+                # to clear the highest bits of the XMM register
+                self.args[1].size = 16
         elif self.opcode == 0x0FD7:
             self.func = "pmovmsk"
             self.size = 4
@@ -393,7 +396,7 @@ class Instruction:
             self.func = "mov"
             self.size = 16
             self.args.append(self.modrm().xmm_register())
-            if self.modrm().mode() != 3
+            if self.modrm().mode() != 3:
                 raise "register expected, but ModR/M mode is not 0b11" 
             self.args().append(self.modrm().xmm_register_or_memory())
         elif self.opcode >= 0x0F90 and self.opcode <= 0x0F9F:
@@ -491,7 +494,7 @@ class Instruction:
             return 8
 
     def encode_regiser(self, reg):
-        self.args.append(Pointer(self.cpu.register[reg], 0, self.size)
+        self.args.append(Pointer(self.cpu.register[reg], 0, self.size))
 
     def encode_accumulator(self):
         self.encode_regiser(0)
@@ -503,23 +506,27 @@ class Instruction:
         reg = (self.opcode % 8) + 8 * self.prefix.rex_b
         self.encode_register(reg)        
 
-    def decode_immediate(self, size = self.size):
+    def decode_immediate(self, size=None):
+        if size == None:
+            size = self.size
         self.args.append(self.stream.read_signed_pointer(size))
 
     def decode_immediate_16or32(self):
         size = min(self.size, 4)
         decode_immediate(size)
 
-    def encode_value(value, size = self.size):
+    def encode_value(value, size=None):
         if self.size == None:
             size = 8
+        elif size == None:
+            size = self.size
         self.args.append(ConstBuffer(value, size).ptr())
 
     def decode_relative_address(self, size):
         rel = self.stream.read_pointer(size).read_signed()
         encode_value(self.cpu.rip + rel)
 
-    def modrm(self)
+    def modrm(self):
         if self._modrm == None:
             self.parse_modrm()
         return self._modrm
@@ -537,7 +544,7 @@ class Instruction:
     def max_address(self):
         return 256 ** self.address_size
 
-    def read_opcode(self, stream)
+    def read_opcode(self, stream):
         byte1 = stream.read()
         if byte1 == 0x0F:
             byte2 = stream.read()
@@ -552,41 +559,44 @@ class Instruction:
         else:
             return byte1
 
-    def condition_is_met(self, cond = @cond)
+    def condition_is_met(self, cond=None):
+        if code == None:
+            cond = self.cond
+
         if cond == None:
             return True
         elif cond == 0:
             return self.cpu.flags.o
         elif cond == 1:
-            return !self.cpu.flags.o
+            return not self.cpu.flags.o
         elif cond == 2:
             return self.cpu.flags.c
         elif cond == 3:
-            return !self.cpu.flags.c
+            return not self.cpu.flags.c
         elif cond == 4:
             return self.cpu.flags.z
         elif cond == 5:
-            return !self.cpu.flags.z
+            return not self.cpu.flags.z
         elif cond == 6:
-            return self.cpu.flags.c && self.cpu.flags.z
+            return self.cpu.flags.c and self.cpu.flags.z
         elif cond == 7:
-            return !self.cpu.flags.c && !self.cpu.flags.z
+            return not self.cpu.flags.c and not self.cpu.flags.z
         elif cond == 8:
             return self.cpu.flags.s
         elif cond == 9:
-            return !self.cpu.flags.s
+            return not self.cpu.flags.s
         elif cond == 10:
             return self.cpu.flags.p
         elif cond == 11:
-            return !self.cpu.flags.p
+            return not self.cpu.flags.p
         elif cond == 12:
             return self.cpu.flags.s != self.cpu.flags.o
         elif cond == 13:
             return self.cpu.flags.s == self.cpu.flags.o
         elif cond == 14:
-            return self.cpu.flags.z && (self.cpu.flags.s != self.cpu.flags.o)
+            return self.cpu.flags.z and self.cpu.flags.s != self.cpu.flags.o
         elif cond == 15:
-            return !self.cpu.flags.z && (self.cpu.flags.s == self.cpu.flags.o)
+            return not self.cpu.flags.z and self.cpu.flags.s == self.cpu.flags.o
         else:
             raise "unexpected value of `cond`: %d" % cond
 
@@ -595,7 +605,7 @@ class Instruction:
             return self.cpu.fs * 16 
         if self.prefix.segment == "GS":
             return self.cpu.gs * 16 
-         if self.prefix.segment == "none":
+        if self.prefix.segment == "none":
             return 0
         raise "unexpected name of the segment: " + self.prefix.segment
 
@@ -606,8 +616,8 @@ class Instruction:
             print("condition: none")
         else:
             print("condition: %d" % self.cond)
-        for arg in self.args
-            puts "arg = %s pos=%x size=%d ==> %s" % [arg.mem.name, arg.pos, arg.size, arg.debug_value]
+        for arg in self.args:
+            print("arg = %s pos=%x size=%d ==> %s" % [arg.mem.name, arg.pos, arg.size, arg.debug_value])
 
         if not self.condition_is_met():
             return
@@ -691,8 +701,8 @@ class Instruction:
 
             highest_res = Utils.highest_bit(args[0].read_int(), args[0].size)
 
-            cpu.flags.o = (highest_res && !highest_bit1 && !highest_bit2) ||
-                          (!highest_res && highest_bit1 && highest_bit2)
+            cpu.flags.o = (highest_res and not highest_bit1 and not highest_bit2) or \
+                          (not highest_res and highest_bit1 and highest_bit2)
 
             self.update_flags("...sz.p.", value, args[0].size)
         elif func in ['sub', 'sbb', 'cmp', 'dec', 'neg']:
@@ -716,9 +726,9 @@ class Instruction:
             if func != 'dec':
                 cpu.flags.c = value < 0
 
-            highest_res = value[2 ** (8 * @size - 1)] == 1
-            self.cpu.flags.o = (!highest_bit1 && highest_bit2 && highest_res) ||
-                               (highest_bit1 && !highest_bit2 && !highest_res)
+            highest_res = value[2 ** (8 * self.size - 1)] == 1
+            self.cpu.flags.o = (not highest_bit1 and highest_bit2 and highest_res) or \
+                               (highest_bit1 and not highest_bit2 and not highest_res)
         elif func == 'xadd':
             self.func = 'xchg'
             self.execute()
@@ -736,7 +746,7 @@ class Instruction:
 
             quotient = dividend / divisor
             remainder = dividend % divisor
-            if quotient >= 256 ** self.size
+            if quotient >= 256 ** self.size:
                 raise "divide error exception: quotient too big: %d (dec) / %x (hex)" % [quotient, quotient]
 
             rax.write_int(quotient)
@@ -753,7 +763,7 @@ class Instruction:
             args[0].write_int(value)
 
             size = self.size
-            self.cpu.flags.c = (value < -(2**(8*size-1)) || (value >= 2**(8*size-1)))
+            self.cpu.flags.c = (value < -(2**(8*size-1)) or (value >= 2**(8*size-1)))
             self.cpu.flags.o = self.cpu.flags.c
         elif func == 'bsf':
             self.cpu.flags.z = args[1].read_int() == 0
@@ -796,7 +806,7 @@ class Instruction:
                         bit_array.push(bit_array[-1])
                     self.cpu.flags.c = bit_array.shift == 1
                     if times == 1:
-                        self.cpu.flags.o = (func == "shr") && orig_highest_bit
+                        self.cpu.flags.o = (func == "shr") and orig_highest_bit
                     args[0].write_bit_array(bit_array)
                 if func in  ["shl", "sal"]:
                     bit_array.unshift(0)
@@ -815,9 +825,9 @@ class Instruction:
             will_jump = False
             if func == "loop":
                 will_jump = True
-            elif (func == "loopz") && self.cpu.flags.z:
+            elif func == "loopz" and self.cpu.flags.z:
                 will_jump = True
-            elif (func == "loopnz") && !self.cpu.flags.z:
+            elif func == "loopnz" and not self.cpu.flags.z:
                 will_jump = True
 
             if will_jump:
@@ -843,7 +853,7 @@ class Instruction:
             # Do nothing
             pass
         elif func == 'cmc': # Complement Carry Flag
-            self.cpu.flags.c = !self.cpu.flags.c
+            self.cpu.flags.c = not self.cpu.flags.c
         elif func == 'clc': # Clear Carry Flag
             self.cpu.flags.c = False
         elif func == 'stc': # Set Carry Flag
@@ -874,17 +884,17 @@ class Instruction:
         elif func == "paddus":
             self.for_each_xmm_item(lambda dest, arg: min(dest + arg, 256 ** self.xmm_item_size - 1))
         elif func == "pminu":
-            self.for_each_xmm_item(lambda dest, arg: [dest, arg].min})
+            self.for_each_xmm_item(lambda dest, arg: [dest, arg].min)
         elif func == "pmaxu":
-            self.for_each_xmm_item(lambda dest, arg: [dest, arg].max})
+            self.for_each_xmm_item(lambda dest, arg: [dest, arg].max)
         elif func == "pavg":
-            self.for_each_xmm_item(lambda dest, arg: (dest + arg + 1) >> 1})
+            self.for_each_xmm_item(lambda dest, arg: (dest + arg + 1) >> 1)
         elif func == "pcmpgt":
-            self.for_each_xmm_item_signed(lambda dest, arg: dest > arg ? -1: 0})
-        elif func == "psll"
-            self.for_each_xmm_item_and_constant(lambda dest, arg: dest << arg})
-        elif func == "psll"
-            self.for_each_xmm_item_and_constant(lambda dest, arg: dest << arg})
+            self.for_each_xmm_item_signed(lambda dest, arg: -1 if dest > arg else 0)
+        elif func == "psll":
+            self.for_each_xmm_item_and_constant(lambda dest, arg: dest << arg)
+        elif func == "psll":
+            self.for_each_xmm_item_and_constant(lambda dest, arg: dest << arg)
         if func in ["punpckl", "punpckh"]:
             arr = []
             for i in range(self.size / self.xmm_item_size):
@@ -909,7 +919,7 @@ class Instruction:
             for i in range(self.size / self.xmm_item_size):
                 dest = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size, self.xmm_item_size)
                 shift = (order >> (2*i)) & 0b11
-                dest.write(data[self.xmm_item_size * (i + shift): self.xmm_item_size * (i + 1+ shift)]))
+                dest.write(data[self.xmm_item_size * (i + shift): self.xmm_item_size * (i + 1 + shift)])
         elif func == "pshufl":
             self.func = "pshuf"
             self.execute()
@@ -948,7 +958,7 @@ class Instruction:
         string_func = self.func
 
         loop_mode = "none"
-        if self.prefix.repe
+        if self.prefix.repe:
             if string_func in ["cmps", "scas"]:
                 loop_mode = "repe"
             else:
@@ -1000,28 +1010,28 @@ class Instruction:
 
             if loop_mode == "none":
                 break
-            elif (loop_mode == "rep") and rcx_empty
+            elif (loop_mode == "rep") and rcx_empty:
                 break
-            elif (loop_mode == "repe") and (rcx_empty or !self.cpu.flags.z):
+            elif (loop_mode == "repe") and (rcx_empty or not self.cpu.flags.z):
                 break
-            elif (loop_mode == "repne") and (rcx_empty or !self.cpu.flags.z):
+            elif (loop_mode == "repne") and (rcx_empty or not self.cpu.flags.z):
                 break
             else:
                 raise "bad loop_mode: %s" % loop_mode
 
     def update_flags(self, pattern, value, size):
         raise "not converted from ruby"
-        # for flag in pattern.split(//)
-        #    case flag
-        #    when 's' # sign flag
-        #        @cpu.flags.s = Utils.highest_bit(value, size)
-        #    when 'z' # zero flag
-        #        @cpu.flags.z = value == 0
-        #    when 'p' # parity flag -- check if the lowest bit is zero
-        #        @cpu.flags.p = value & 1 == 0
-        #    when '.', '-'
-        #    else
-        #        raise "unsupported flag: " + flag
+        for flag in list(pattern):
+            if flag == 's':    # sign flag
+                self.cpu.flags.s = Utils.highest_bit(value, size)
+            elif flag == 'z':  # zero flag
+                self.cpu.flags.z = value == 0
+            elif flag == 'p':  # parity flag -- check if the lowest bit is zero
+                self.cpu.flags.p = value & 1 == 0
+            elif flag in [ '.', '-']:
+                pass
+            else:
+                raise Exception("unsupported flag: " + flag)
 
     # calculate operand size if operand size is not 1 ("multi-byte")
     def multi_byte(self):
@@ -1032,7 +1042,7 @@ class Instruction:
         else:
             return 4
 
-    def jump(self, pos)
+    def jump(self, pos):
         self.cpu.rip = pos.read_int()
 
     mm_xmm_reg_regmem_opcodes = {
@@ -1091,6 +1101,8 @@ class Instruction:
     ZERO = "_0_" # constant value of 0
     ONE = "_1_"  # constant value of 1
     C_F = "c_f"  # carry flag
+    SIMD_REG = "simd_reg" # MM/XMM ModR/M register
+    SIMD_REGMEM = "simd_remem" # MM/XMM ModR/M register or memory
 
     NOT_IMPLEMENTED = "n/i" # opcode or opcode extension not implemented
 
@@ -1196,140 +1208,111 @@ class Instruction:
         0x0F6D: { 0x66: ["punpckh", SIMD_16, SIMD_ITEM_8, SIMD_REG, SIMD_REGMEM]},
     }
 
-class ModRM_Parser
-    attr_accessor :operand_size
+class ModRM_Parser:
+    def __init__(self, stream, prefix, cpu, operand_size, address_size,\
+                 segment_offset):
+        self.prefix = prefix
+        self.stream = stream
+        self.modrm = stream.read
+        self.cpu = cpu
+        self.operand_size = operand_size
+        self.address_size = address_size
+        self.segment_offset = segment_offset
 
-    def initialize(stream, prefix, cpu, operand_size, address_size, segment_offset)
-        @prefix = prefix
-        @stream = stream
-        @modrm = stream.read
-        @cpu = cpu
-        @operand_size = operand_size
-        @address_size = address_size
-        @segment_offset = segment_offset
-    end
+    def mode(self):
+        return (self.modrm >> 6) & 0x3
 
-    def mode
-        return (@modrm >> 6) & 0x3
-    end
+    def opcode_ext(self):
+        return (self.modrm & 0x38) >> 3
 
-    def opcode_ext
-        return (@modrm & 0x38) >> 3
-    end
+    def register(self):
+        index = ((self.modrm & 0x38) >> 3) + self.prefix.reg_extension
+        return Pointer(self.cpu.register[index], 0, self.operand_size)
 
-    def register
-        index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
-        return Pointer.new(@cpu.register[index], 0, @operand_size)
-    end
+    def mm_or_xmm_register(self):
+        index = ((self.modrm & 0x38) >> 3) + self.prefix.reg_extension
+        if self.operand_size == 8:
+            return Pointer(self.cpu.mm_register[index], 0, self.operand_size)
+        else:
+            return Pointer(self.cpu.xmm_register[index], 0, self.operand_size)
 
-    def mm_or_xmm_register
-        # TODO: add support of VEX/EVEX
-        index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
-        if @operand_size == 8
-            return Pointer.new(@cpu.mm_register[index], 0, @operand_size)
-        else
-            return Pointer.new(@cpu.xmm_register[index], 0, @operand_size)
-        end
-    end
+    def xmm_register(self):
+        index = ((self.modrm & 0x38) >> 3) + self.prefix.reg_extension
+        return Pointer(self.cpu.xmm_register[index], 0, self.operand_size)
 
-    def xmm_register
-        # TODO: add support of VEX/EVEX
-        index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
-        return Pointer.new(@cpu.xmm_register[index], 0, @operand_size)
-    end
-
-    def register_or_memory
-        regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
-        if mode == 0x03
-            return Pointer.new(@cpu.register[regmem], 0, @operand_size)        
-        else
-            if [0x4, 0xC].include? regmem
+    def register_or_memory(self):
+        regmem = (self.modrm & 0x07) + 8 * self.prefix.rex_b
+        if mode == 0x03:
+            return Pointer(self.cpu.register[regmem], 0, self.operand_size)        
+        else:
+            if regmem in [0x4, 0xC]:
                 return sib
-            elsif ([0x5, 0xD].include? regmem) && (mode == 0)
-                rel = @stream.read_pointer(4).read_signed
-                return memory_at(@cpu.rip + rel)
-            else
-                addr = @cpu.register[regmem].read_int(0, @address_size)
-                case mode
-                when 0x1
+            elif (regmem in [0x5, 0xD]) and (mode == 0):
+                rel = self.stream.read_pointer(4).read_signed()
+                return memory_at(self.cpu.rip + rel)
+            else:
+                addr = self.cpu.register[regmem].read_int(0, self.address_size)
+
+                if mode == 0x1:
                     addr += disp8
-                when 0x2
+                elif mode == 0x2:
                     addr += disp32
-                end
-                return memory_at (addr % (2 ** (8 * @address_size)))
-            end
-        end
-    end
 
-    def mm_or_xmm_register_or_memory
-        # TODO: add support of VEX/EVEX
-        regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
-        if mode == 0x03
-            if @operand_size == 8
-                return Pointer.new(@cpu.mm_register[regmem], 0, @operand_size)
-            else
-                return Pointer.new(@cpu.xmm_register[regmem], 0, @operand_size)
-            end
-        else
+                return memory_at (addr % (2 ** (8 * self.address_size)))
+
+    def mm_or_xmm_register_or_memory(self):
+        regmem = (self.modrm & 0x07) + 8 * self.prefix.rex_b
+        if mode == 0x03:
+            if self.operand_size == 8:
+                return Pointer(self.cpu.mm_register[regmem], 0, self.operand_size)
+            else:
+                return Pointer(self.cpu.xmm_register[regmem], 0, self.operand_size)
+        else:
             # TODO: is pointer to memory stored in a general purpose register
             # or in MM/XMM register?
-            return register_or_memory
-        end
-    end
+            return self.register_or_memory()
 
-    def xmm_register_or_memory
-        # TODO: add support of VEX/EVEX
-        regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
-        if mode == 0x03
-            return Pointer.new(@cpu.xmm_register[regmem], 0, @operand_size)
-        else
+    def xmm_register_or_memory(self):
+        regmem = (self.modrm & 0x07) + 8 * self.prefix.rex_b
+        if mode == 0x03:
+            return Pointer(self.cpu.xmm_register[regmem], 0, self.operand_size)
+        else:
             # TODO: is pointer to memory stored in a general purpose register
             # or in MM/XMM register?
-            return register_or_memory
-        end
-    end
+            return self.register_or_memory()
 
-
-    def memory_at(pos)
-        p "memory_at %x" % pos
+    def memory_at(self, pos):
+        print("memory_at %x" % pos)
         # TODO: shall @segment_offset be used in all cases
         # TODO: how do segment overrides work with RIP addressing
-        return Pointer.new(@stream.mem, (@segment_offset + pos) % (2 ** (8 * @address_size)), @operand_size) 
-    end
+        return Pointer(self.stream.mem, (self.segment_offset + pos) % (2 ** (8 * self.address_size)), self.operand_size) 
 
-    def disp32
-        return @stream.read_pointer(4).read_signed
-    end
+    def disp32(self):
+        return self.stream.read_pointer(4).read_signed()
 
-    def disp8
-        return @stream.read_pointer(1).read_signed
-    end
+    def disp8(self):
+        return self.stream.read_pointer(1).read_signed()
 
-    def sib
-        sib = @stream.read
-        @scale = 2 ** (sib >> 6)
-        @index_reg = ((sib >> 3) & 0x07) + 8 * @prefix.rex_x
-        @base_reg = (sib & 0x07) + 8 * @prefix.rex_b
+    def sib(self):
+        sib = self.stream.read()
+        self.scale = 2 ** (sib >> 6)
+        self.index_reg = ((sib >> 3) & 0x07) + 8 * self.prefix.rex_x
+        self.base_reg = (sib & 0x07) + 8 * self.prefix.rex_b
 
-        if @index_reg == 4
-            @index = 0
-        else
-            @index = @cpu.register[@index_reg].read_int(0, @address_size)
-        end
+        if self.index_reg == 4:
+            self.index = 0
+        else:
+            self.index = self.cpu.register[self.index_reg].read_int(0, self.address_size)
 
-        @base = @cpu.register[@base_reg].read_int(0, @address_size)
+        self.base = self.cpu.register[self.base_reg].read_int(0, self.address_size)
 
-        case mode
-        when 0x0
-            if [0x5, 0xD].include? @base_reg
-                return memory_at(@index * @scale + disp32)
-            else
-                return memory_at(@base + @index * @scale)
-            end
-        when 0x1
-            return memory_at(@base + @index * @scale + disp8)
-        when 0x2            
-            return memory_at(@base + @index * @scale + disp32)            
-        end
-    end
-end
+        mode = self.mode()
+        if mode == 0x0:
+            if self.base_reg in [0x5, 0xD]:
+                return self.memory_at(self.index * self.scale + disp32)
+            else:
+                return self.memory_at(self.base + self.index * self.scale)
+        elif mode == 0x1:
+            return self.memory_at(self.base + self.index * self.scale + disp8)
+        elif mode == 0x2:
+            return self.memory_at(self.base + self.index * self.scale + disp32)
