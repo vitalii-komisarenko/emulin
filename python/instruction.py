@@ -669,20 +669,20 @@ class Instruction:
         elif func == 'xor':
             value = args[0].read_int() ^ args[1].read_int()
             args[0].write_int(value)
-            self.update_flags("...sz.p.", value, args[0].size)
+            self.update_szp_flags(value, args[0].size)
             self.cpu.flags.o = 0
             self.cpu.flags.c = 0
         elif func == 'or':
             value = args[0].read_int() | args[1].read_int()
             args[0].write_int(value)
-            self.update_flags("...sz.p.", value, args[0].size)
+            self.update_szp_flags(value, args[0].size)
             self.cpu.flags.o = 0
             self.cpu.flags.c = 0
         elif func in ['and', 'test']:
             value = args[0].read_int() & args[1].read_int()
             if func == 'and':
                 args[0].write_int(value)
-            self.update_flags("...sz.p.", value, args[0].size)
+            self.update_szp_flags(value, args[0].size)
             self.cpu.flags.o = 0
             self.cpu.flags.c = 0
         elif func in ['add', 'adc', 'inc']:
@@ -704,7 +704,7 @@ class Instruction:
             cpu.flags.o = (highest_res and not highest_bit1 and not highest_bit2) or \
                           (not highest_res and highest_bit1 and highest_bit2)
 
-            self.update_flags("...sz.p.", value, args[0].size)
+            self.update_szp_flags(value, args[0].size)
         elif func in ['sub', 'sbb', 'cmp', 'dec', 'neg']:
             highest_bit1 = Utils.highest_bit(args[0].read_int(), args[0].size)
             highest_bit2 = Utils.highest_bit(args[1].read_int(), args[1].size)
@@ -721,7 +721,7 @@ class Instruction:
             if func != 'cmp':
                 args[dest_idx].write_int(value)
 
-            self.update_flags("...sz.p.", value, args[0].size)
+            self.update_szp_flags(value, args[0].size)
 
             if func != 'dec':
                 cpu.flags.c = value < 0
@@ -1019,19 +1019,13 @@ class Instruction:
             else:
                 raise "bad loop_mode: %s" % loop_mode
 
-    def update_flags(self, pattern, value, size):
-        raise "not converted from ruby"
-        for flag in list(pattern):
-            if flag == 's':    # sign flag
-                self.cpu.flags.s = Utils.highest_bit(value, size)
-            elif flag == 'z':  # zero flag
-                self.cpu.flags.z = value == 0
-            elif flag == 'p':  # parity flag -- check if the lowest bit is zero
-                self.cpu.flags.p = value & 1 == 0
-            elif flag in [ '.', '-']:
-                pass
-            else:
-                raise Exception("unsupported flag: " + flag)
+    def update_szp_flags(self, value, size):
+        # sign flag
+        self.cpu.flags.s = Utils.highest_bit(value, size)
+        # zero flag
+        self.cpu.flags.z = value == 0
+        # parity flag
+        self.cpu.flags.p = value & 1 == 0
 
     # calculate operand size if operand size is not 1 ("multi-byte")
     def multi_byte(self):
