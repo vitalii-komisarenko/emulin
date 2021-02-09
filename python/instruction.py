@@ -1,5 +1,5 @@
 import stream
-import pointer
+from pointer import Pointer
 import const_buffer
 
 
@@ -100,7 +100,7 @@ class Instruction:
 
         if self.opcode >= 0x00 and self.opcode <= 0x3F:
             if self.opcode % 8 in [6, 7]:
-                raise "bad opcode: %02x"
+                raise Exception("bad opcode: 0x%02x" % self.opcode)
 
             funcs = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
             params = [[BYTE, R_M, REG],
@@ -1236,31 +1236,37 @@ class ModRM_Parser:
 
     def register_or_memory(self):
         regmem = (self.modrm & 0x07) + 8 * self.prefix.rex_b
+
+        mode = self.mode()
+
         if mode == 0x03:
-            return Pointer(self.cpu.register[regmem], 0, self.operand_size)        
+            return Pointer(self.cpu.register[regmem], 0, self.operand_size)
         else:
             if regmem in [0x4, 0xC]:
-                return sib
+                return self.sib()
             elif (regmem in [0x5, 0xD]) and (mode == 0):
                 rel = self.stream.read_pointer(4).read_signed()
-                return memory_at(self.cpu.rip + rel)
+                return self.memory_at(self.cpu.rip + rel)
             else:
                 addr = self.cpu.register[regmem].read_int(0, self.address_size)
 
                 if mode == 0x1:
-                    addr += disp8
+                    addr += self.disp8()
                 elif mode == 0x2:
-                    addr += disp32
+                    addr += self.disp32()
 
-                return memory_at (addr % (2 ** (8 * self.address_size)))
+                return self.memory_at(addr)
 
     def mm_or_xmm_register_or_memory(self):
         regmem = (self.modrm & 0x07) + 8 * self.prefix.rex_b
-        if mode == 0x03:
-            if self.operand_size == 8:
-                return Pointer(self.cpu.mm_register[regmem], 0, self.operand_size)
+
+        op_size = self.operand_size
+
+        if self.mode() == 0x03:
+            if op_size == 8:
+                return Pointer(self.cpu.mm_register[regmem], 0, op_size)
             else:
-                return Pointer(self.cpu.xmm_register[regmem], 0, self.operand_size)
+                return Pointer(self.cpu.xmm_register[regmem], 0, op_size)
         else:
             # TODO: is pointer to memory stored in a general purpose register
             # or in MM/XMM register?
@@ -1268,7 +1274,7 @@ class ModRM_Parser:
 
     def xmm_register_or_memory(self):
         regmem = (self.modrm & 0x07) + 8 * self.prefix.rex_b
-        if mode == 0x03:
+        if self.mode() == 0x03:
             return Pointer(self.cpu.xmm_register[regmem], 0, self.operand_size)
         else:
             # TODO: is pointer to memory stored in a general purpose register
@@ -1279,7 +1285,10 @@ class ModRM_Parser:
         print("memory_at %x" % pos)
         # TODO: shall @segment_offset be used in all cases
         # TODO: how do segment overrides work with RIP addressing
-        return Pointer(self.stream.mem, (self.segment_offset + pos) % (2 ** (8 * self.address_size)), self.operand_size) 
+        max_addr = 256 ** self.address_size
+        return Pointer(self.stream.mem,
+                       (self.segment_offset + pos) % max_addr,
+                       self.operand_size)
 
     def disp32(self):
         return self.stream.read_pointer(4).read_signed()
@@ -1289,24 +1298,25 @@ class ModRM_Parser:
 
     def sib(self):
         sib = self.stream.read()
-        self.scale = 2 ** (sib >> 6)
-        self.index_reg = ((sib >> 3) & 0x07) + 8 * self.prefix.rex_x
-        self.base_reg = (sib & 0x07) + 8 * self.prefix.rex_b
+        scale = 2 ** (sib >> 6)
+        index_reg = ((sib >> 3) & 0x07) + 8 * self.prefix.rex_x
+        base_reg = (sib & 0x07) + 8 * self.prefix.rex_b
 
-        if self.index_reg == 4:
-            self.index = 0
+        index = None
+        if index_reg == 4:
+            index = 0
         else:
-            self.index = self.cpu.register[self.index_reg].read_int(0, self.address_size)
+            index = self.cpu.register[index_reg].read_int(0, self.address_size)
 
-        self.base = self.cpu.register[self.base_reg].read_int(0, self.address_size)
+        base = self.cpu.register[base_reg].read_int(0, self.address_size)
 
         mode = self.mode()
         if mode == 0x0:
-            if self.base_reg in [0x5, 0xD]:
-                return self.memory_at(self.index * self.scale + disp32)
+            if base_reg in [0x5, 0xD]:
+                return self.memory_at(index * scale + self.disp32())
             else:
-                return self.memory_at(self.base + self.index * self.scale)
+                return self.memory_at(base + index * scale)
         elif mode == 0x1:
-            return self.memory_at(self.base + self.index * self.scale + disp8)
+            return self.memory_at(base + index * scale + self.disp8())
         elif mode == 0x2:
-            return self.memory_at(self.base + self.index * self.scale + disp32)
+            return self.memory_at(base + index * scale + self.disp32())
