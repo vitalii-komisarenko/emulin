@@ -29,7 +29,7 @@ class InstructionPrefix:
         while True:
             prefix = stream.read()
 
-            if prefix in prefixes_to_ignore:
+            if prefix in InstructionPrefix.prefixes_to_ignore:
                 pass
             elif (prefix >= 0x40) and (prefix <= 0x4F):  # REX prefix
                 self.rex_w = (prefix >> 3) & 1
@@ -80,8 +80,8 @@ class Instruction:
         self.cpu = cpu
         self.linux = linux
 
-        self.prefix = InstructionPrefix.new(stream)
-        self.opcode = read_opcode(stream)
+        self.prefix = InstructionPrefix(stream)
+        self.opcode = self.read_opcode(stream)
         self.modrm = None
 
         self.func = None  # operation to be done (e.g. 'add', 'mov' etc.)
@@ -91,7 +91,7 @@ class Instruction:
         self.cond = None  # condition to check for conditional operations
                           # (e.g. 'jne', 'cmovo')
 
-        self.xmm_item_size = nil
+        self.xmm_item_size = None
 
         if self.prefix.address_size_overridden:
             self.address_size = 4

@@ -18,18 +18,18 @@ class Cpu:
         for i in range(16):
             reg = Register()
             reg.write(0, [i, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
-            reg.name = "reg #%d %s" % [i, Cpu.reg_names[i]]
-            self.register.push(reg)
+            reg.name = "reg #%d %s" % (i, Cpu.reg_names[i])
+            self.register.append(reg)
 
         for i in range(32):
             reg = MMRegister()
             reg.name = "mm #%d" % i
-            self.mm_register.push(reg)
+            self.mm_register.append(reg)
 
         for i in range(32):
             reg = XMMRegister()
             reg.name = "xmm #%d" % i
-            self.xmm_register.push(reg)
+            self.xmm_register.append(reg)
 
     reg_names = ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
                  "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"]
@@ -48,7 +48,7 @@ class Cpu:
 
 
 class FlagsRegister:
-    def __init(self):
+    def __init__(self):
         self._o = False
         self._d = False
         self._i = False

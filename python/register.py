@@ -2,6 +2,7 @@ from addressable import Addressable
 
 
 class Register(Addressable):
+    @staticmethod
     def check_addressing(pos, size):
         if (pos == 0) and (size in [1, 2, 4, 8]):
             return
@@ -12,7 +13,7 @@ class Register(Addressable):
         raise "cannot read %d bytes from position %d" % [size, pos]
 
     def write(self, pos, data):
-        self.check_addressing(pos, data.length)
+        self.check_addressing(pos, len(data))
 
         if (pos == 0) and (len(data) == 4):
             # On x86_64 writing to the lowest 4 bytes of a register

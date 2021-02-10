@@ -2,7 +2,7 @@ from pointer import Pointer, PointerSigned
 
 
 class Stream:
-    def __inti__(self, memory, pos):
+    def __init__(self, memory, pos):
         self.mem = memory
         self.pos = pos
 

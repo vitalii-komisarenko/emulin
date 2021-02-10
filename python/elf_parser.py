@@ -41,10 +41,10 @@ class ElfHeader:
 
         buffer = file.read(struct.calcsize(scheme))
 
-        self.e_type, self.e_machine, self.e_version, self.e_entry,
+        (self.e_type, self.e_machine, self.e_version, self.e_entry,
         self.e_phoff, self.e_shoff, self.e_flags, self.e_ehsize,
         self.e_phentsize, self.e_phnum, self.e_shentsize,
-        self.e_shnum, self.e_shstrndx = struct.unpack(scheme, buffer)
+        self.e_shnum, self.e_shstrndx) = struct.unpack(scheme, buffer)
 
     def is_little_endian(self):
         return self.e_ident['EI_DATA'] == 1
@@ -114,9 +114,9 @@ class ElfSectionHeaderEntry:
 
         buffer = file.read(elf_header.e_shentsize)
 
-        self.sh_name, self.sh_type, self.sh_flags, self.sh_addr,
+        (self.sh_name, self.sh_type, self.sh_flags, self.sh_addr,
         self.sh_offset, self.sh_size, self.sh_link, self.sh_info,
-        self.sh_addralign, self.sh_entsize = struct.unpack(scheme, buffer)
+        self.sh_addralign, self.sh_entsize) = struct.unpack(scheme, buffer)
 
 
 class ElfSectionHeader:

@@ -11,7 +11,7 @@ mem = Memory()
 # Load program segments into the memory
 for ph in elf.program_header.entries:
     data = ph.data_to_load_to_memory
-    print("writing a segment: %d bytes at pos 0x%x" % [len(data), ph.p_vaddr])
+    print("writing a segment: %d bytes at pos 0x%x" % (len(data), ph.p_vaddr))
     mem.write(ph.p_vaddr, data)
 
 cpu = Cpu(mem, elf.elf_header.e_entry, 0x123456789ABCDEF)
@@ -35,8 +35,7 @@ except Exception as e:
         print("register #%d -> " % i)
         cpu.register[i].debug()
 
-    print("flags: " + cpu.flags)
+    print(f"flags: {cpu.flags}")
     print("stack: 0x%x" % cpu.stack.pos)
 
-    print(e.__doc__)
-    print(e.message)
+    print(e)
