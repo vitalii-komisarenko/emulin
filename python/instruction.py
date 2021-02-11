@@ -121,9 +121,9 @@ class Instruction:
         elif self.opcode == 0x63:
             self.func = "movsxd"
             self.size = self.multi_byte
-            self.args.append(self.modrm.register())
-            self.modrm.operand_size = min(4, modrm.operand_size)
-            self.args.append(self.modrm.register_or_memory())
+            self.args.append(self.modrm().register())
+            self.modrm().operand_size = min(4, self.modrm().operand_size)
+            self.args.append(self.modrm().register_or_memory())
         elif self.opcode == 0x68:
             self.func = "push"
             self.size = self.multi_byte()
@@ -136,25 +136,25 @@ class Instruction:
             self.func = "movsx"
             self.size = self.multi_byte()
             self.args.append(self.modrm().register())
-            self.modrm.operand_size = 1
+            self.modrm().operand_size = 1
             self.args.append(self.modrm().register_or_memory())
         elif self.opcode == 0x0FBF:
             self.func = "movsx"
             self.size = self.multi_byte()
             self.args.append(self.modrm().register())
-            self.modrm.operand_size = 2
+            self.modrm().operand_size = 2
             self.args.append(self.modrm().register_or_memory())
         elif self.opcode == 0x0FB6:
             self.func = "movzx"
             self.size = self.multi_byte()
             self.args.append(self.modrm().register())
-            self.modrm.operand_size = 1
+            self.modrm().operand_size = 1
             self.args.append(self.modrm().register_or_memory())
         elif self.opcode == 0x0FB7:
             self.func = "movzx"
             self.size = self.multi_byte()
             self.args.append(self.modrm().register())
-            self.modrm.operand_size = 2
+            self.modrm().operand_size = 2
             self.args.append(self.modrm().register_or_memory())
         elif self.opcode >= 0x70 and self.opcode <= 0x7F:
             self.func = "jmp"
@@ -259,7 +259,7 @@ class Instruction:
             self.size = 8
             self.args.append(self.modrm().xmm_register())
             self.args.append(self.modrm().xmm_register_or_memory())
-            if modrm.mode == 0b11:
+            if self.modrm().mode == 0b11:
                 raise "memory expected" 
         elif self.opcode == 0x0F16:
             if self.prefix.simd_prefix != 0x66:
@@ -269,7 +269,7 @@ class Instruction:
             self.size = 8
             self.args.append(self.modrm().xmm_register())
             self.args.append(self.modrm().xmm_register_or_memory())
-            if modrm.mode == 0b11:
+            if self.modrm().mode == 0b11:
                 raise "memory expected" 
             self.args[0] = Pointer(self.args[0].mem, self.args[0].pos + 8, self.args[0].size)
         elif self.opcode >= 0x0F19 and self.opcode <= 0x0F1F:
@@ -379,7 +379,7 @@ class Instruction:
             self.func = "movq"
             self.size = 8
             self.args.append(self.modrm().xmm_register_or_memory())
-            self.args.append(self.modrm.xmm_register())
+            self.args.append(self.modrm().xmm_register())
             if self.modrm().mode() == 0x3: # points to a register
                 # to clear the highest bits of the XMM register
                 self.args[1].size = 16
@@ -456,7 +456,7 @@ class Instruction:
 
         self.func = arr[0]
         if self.func == "#ROTATE/SHIFT":
-            self.func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][self.modrm.opcode_ext()]
+            self.func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][self.modrm().opcode_ext()]
         elif self.func == NOT_IMPLEMENTED:
             raise "not implemented"
 
