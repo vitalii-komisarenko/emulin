@@ -82,7 +82,7 @@ class Instruction:
 
         self.prefix = InstructionPrefix(stream)
         self.opcode = self.read_opcode(stream)
-        self.modrm = None
+        self._modrm = None
 
         self.func = None  # operation to be done (e.g. 'add', 'mov' etc.)
         self.size = None  # operand size (in bytes)
@@ -527,7 +527,7 @@ class Instruction:
         encode_value(self.cpu.rip + rel)
 
     def modrm(self):
-        if self._modrm == None:
+        if self._modrm is None:
             self.parse_modrm()
         return self._modrm
 
@@ -536,7 +536,8 @@ class Instruction:
         if self.prefix.address_size_overridden:
             address_size = 4
 
-        self._modrm = ModRM_Parser(self.stream, self.prefix, self.cpu, self.size, address_size, segment_offset)
+        self._modrm = ModRM_Parser(self.stream, self.prefix, self.cpu, self.size, address_size,
+                                   self.segment_offset)
 
     def unspecified_opcode_extension(self):
         raise "Unspecified opcode extension %d for opcode 0x%X" % [self.modrm().opcode_ext(), self.opcode]
