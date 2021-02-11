@@ -2,6 +2,7 @@ from elf_parser import Elf
 from memory import Memory
 from cpu import Cpu
 from linux import Linux
+import traceback
 
 
 elf = Elf("../progs_to_test/bin/hello_cpp")
@@ -38,4 +39,4 @@ except Exception as e:
     print(f"flags: {cpu.flags}")
     print("stack: 0x%x" % cpu.stack.pos)
 
-    print(e)
+    traceback.print_exc()
