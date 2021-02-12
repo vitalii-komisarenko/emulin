@@ -1,6 +1,7 @@
 import stream
 from pointer import Pointer
-import const_buffer
+from const_buffer import ConstBuffer
+from utils import Utils
 
 
 class InstructionPrefix:
@@ -513,9 +514,9 @@ class Instruction:
 
     def decode_immediate_16or32(self):
         size = min(self.size, 4)
-        decode_immediate(size)
+        self.decode_immediate(size)
 
-    def encode_value(value, size=None):
+    def encode_value(self.value, size=None):
         if self.size == None:
             size = 8
         elif size == None:
@@ -524,7 +525,7 @@ class Instruction:
 
     def decode_relative_address(self, size):
         rel = self.stream.read_pointer(size).read_signed()
-        encode_value(self.cpu.rip + rel)
+        self.encode_value(self.cpu.rip + rel)
 
     def modrm(self):
         if self._modrm is None:
@@ -702,8 +703,8 @@ class Instruction:
 
             highest_res = Utils.highest_bit(args[0].read_int(), args[0].size)
 
-            cpu.flags.o = (highest_res and not highest_bit1 and not highest_bit2) or \
-                          (not highest_res and highest_bit1 and highest_bit2)
+            self.cpu.flags.o = (highest_res and not highest_bit1 and not highest_bit2) or \
+                (not highest_res and highest_bit1 and highest_bit2)
 
             self.update_szp_flags(value, args[0].size)
         elif func in ['sub', 'sbb', 'cmp', 'dec', 'neg']:
@@ -712,7 +713,7 @@ class Instruction:
 
             cf = 0
             if func == 'sbb':
-                cf = cpu.flags.c
+                cf = self.cpu.flags.c
             value = args[0].read_int() - args[1].read_signed() - cf
 
             dest_idx = 0
@@ -725,7 +726,7 @@ class Instruction:
             self.update_szp_flags(value, args[0].size)
 
             if func != 'dec':
-                cpu.flags.c = value < 0
+                self.cpu.flags.c = value < 0
 
             highest_res = value[2 ** (8 * self.size - 1)] == 1
             self.cpu.flags.o = (not highest_bit1 and highest_bit2 and highest_res) or \
@@ -790,12 +791,12 @@ class Instruction:
                     args[0].write_int(value / 2)
                     self.cpu.flags.o = orig_highest_bit == 1
                 elif func == "rcl":
-                    bit_array.shift(cpu.flags.c)
+                    bit_array.shift(self.cpu.flags.c)
                     self.cpu.flags.c = bit_array.pop() == 1
-                    self.cpu.flags.o = cpu.flags.c ^ (bit_array[-1] == 1)
+                    self.cpu.flags.o = self.cpu.flags.c ^ (bit_array[-1] == 1)
                     args[0].write_bit_array(bit_array)
                 elif func == "rcr":
-                    bit_array.push(cpu.flags.c)
+                    bit_array.push(self.cpu.flags.c)
                     self.cpu.flags.c = bit_array.unshift() == 1
                     self.cpu.flags.o = bit_array[-1] != bit_array[-2]
                     args[0].write_bit_array(bit_array)
@@ -912,7 +913,7 @@ class Instruction:
             args[0].write(arr)
         elif func == "pmovmsk":
             args[0].write_with_zero_extension([])
-            arr = [Util.highest_bit(x) for x in args[1].read()]
+            arr = [Utils.highest_bit(x) for x in args[1].read()]
             args[0].write_bit_array(arr)
         elif func == "pshuf":
             order = args[2].read_int()
@@ -933,6 +934,7 @@ class Instruction:
             raise "function not implemented: " + self.func
 
     def for_each_xmm_item(self, func):
+        args = self.args
         for i in range(self.size / self.xmm_item_size):
             dest_ptr = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size, self.xmm_item_size)
             arg_ptr  = Pointer(args[1].mem, args[1].pos + i * self.xmm_item_size, self.xmm_item_size)
@@ -941,6 +943,7 @@ class Instruction:
             dest_ptr.write_int(func(dest, arg))
 
     def for_each_xmm_item_signed(self, func):
+        args = self.args
         for i in range(self.size / self.xmm_item_size):
             dest_ptr = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size, self.xmm_item_size)
             arg_ptr  = Pointer(args[1].mem, args[1].pos + i * self.xmm_item_size, self.xmm_item_size)
@@ -949,6 +952,7 @@ class Instruction:
             dest_ptr.write_int(func(dest, arg))
 
     def for_each_xmm_item_and_constant(self, func):
+        args = self.args
         arg = args[1].read_int()
         for i in range(self.size / self.xmm_item_size):
             dest_ptr = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size, self.xmm_item_size)
@@ -974,8 +978,11 @@ class Instruction:
             rdi = Pointer(self.cpu.register[7], 0, self.address_size)
 
             # ES:EDI, DS:ESI. Only DS can be overridden.
-            pointed_by_rdi = Pointer(self.stream.mem, rdi.read_int % max_address, self.size)
-            pointed_by_rsi = Pointer(self.stream.mem, (segment_offset + rsi.read_int) % max_address, self.size)
+            pointed_by_rdi = Pointer(self.stream.mem,
+                                     rdi.read_int() % self.max_address(), self.size)
+            pointed_by_rsi = Pointer(self.stream.mem,
+                                     (self.segment_offset() + rsi.read_int()) % self.max_address(),
+                                     self.size)
 
             ptr_diff = -self.size if self.cpu.flags.d else self.size
 
@@ -995,7 +1002,7 @@ class Instruction:
             elif string_func == "stos":
                 pointed_by_rdi.write(rax.read())
                 rdi.write_int(rdi.read_int() + ptr_diff)
-            elif func == "scas":
+            elif string_func == "scas":
                 self.func = "cmp"
                 self.args = [rax, pointed_by_rdi]
                 self.execute()
