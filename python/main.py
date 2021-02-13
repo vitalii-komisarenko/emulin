@@ -31,7 +31,7 @@ try:
         print("=====")
         print("pos = 0x%x" % cpu.mem_stream.pos)
         cpu.exectute_next_instruction()
-except Exception as e:
+except Exception:
     for i in range(16):
         print("register #%d -> " % i)
         cpu.register[i].debug()

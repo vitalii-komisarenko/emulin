@@ -250,21 +250,21 @@ class Instruction:
                 ptr = self.modrm().register_or_memory()
                 self.encode_value(ptr.read_int)
             else:
-                raise "opcode extension not implemented for opcode 0xFF: %d" % ext
+                raise Exception("opcode extension not implemented for opcode 0xFF: %d" % ext)
 
         elif self.opcode == 0x0F12:
             if self.prefix.simd_prefix != 0x66:
-                raise "not implemtented"
+                raise Exception("not implemtented")
 
             self.func = "mov"
             self.size = 8
             self.args.append(self.modrm().xmm_register())
             self.args.append(self.modrm().xmm_register_or_memory())
             if self.modrm().mode == 0b11:
-                raise "memory expected" 
+                raise Exception("memory expected")
         elif self.opcode == 0x0F16:
             if self.prefix.simd_prefix != 0x66:
-                raise "not implemtented"
+                raise Exception("not implemtented")
 
             self.func = "mov"
             self.size = 8
@@ -505,7 +505,7 @@ class Instruction:
 
     def decode_register_from_opcode(self):
         reg = (self.opcode % 8) + 8 * self.prefix.rex_b
-        self.encode_register(reg)        
+        self.encode_register(reg)
 
     def decode_immediate(self, size=None):
         if size == None:
@@ -516,10 +516,10 @@ class Instruction:
         size = min(self.size, 4)
         self.decode_immediate(size)
 
-    def encode_value(self.value, size=None):
-        if self.size == None:
+    def encode_value(self, value, size=None):
+        if self.size is None:
             size = 8
-        elif size == None:
+        elif size is None:
             size = self.size
         self.args.append(ConstBuffer(value, size).ptr())
 
@@ -562,10 +562,10 @@ class Instruction:
             return byte1
 
     def condition_is_met(self, cond=None):
-        if code == None:
+        if code is None:
             cond = self.cond
 
-        if cond == None:
+        if cond is None:
             return True
         elif cond == 0:
             return self.cpu.flags.o
@@ -604,9 +604,9 @@ class Instruction:
 
     def segment_offset(self):
         if self.prefix.segment == "FS":
-            return self.cpu.fs * 16 
+            return self.cpu.fs * 16
         if self.prefix.segment == "GS":
-            return self.cpu.gs * 16 
+            return self.cpu.gs * 16
         if self.prefix.segment == "none":
             return 0
         raise "unexpected name of the segment: " + self.prefix.segment
@@ -614,12 +614,12 @@ class Instruction:
     def execute(self):
         print("opcode: %x" % self.opcode)
         print(self.func)
-        if self.cond == None:
+        if self.cond is None:
             print("condition: none")
         else:
             print("condition: %d" % self.cond)
         for arg in self.args:
-            print("arg = %s pos=%x size=%d ==> %s" % [arg.mem.name, arg.pos, arg.size, arg.debug_value])
+            print("arg = %s pos=%x size=%d ==> %s" % (arg.mem.name, arg.pos, arg.size, arg.debug_value))
 
         if not self.condition_is_met():
             return
@@ -629,13 +629,13 @@ class Instruction:
 
         if func in ["ins", "movs", "outs", "lods", "stos", "cmps", "scas"]:
             return self.execute_string_instruction()
-        elif func ==  "lea":
+        elif func == "lea":
             if self.modrm().mode() == 0x03:
                 raise "LEA & register-direct addressing mode"
             args[0].write_int(args[1].pos)
         elif func in ["mov", "set", "movap"]:
             args[0].write(args[1].read())
-        elif func == "movq": # used in moving data from the lowest bits of XMM to XMM/memory
+        elif func == "movq":  # used in moving data from the lowest bits of XMM to XMM/memory
             args[0].write_with_zero_extension(args[1].read())
         elif func in ["movsxd", "movsx"]:
             args[0].write_int(args[1].read_signed())
@@ -667,7 +667,7 @@ class Instruction:
             #    @cpu.register[10].read(0, 8).pack("C*").unpack("Q<")[0],
             #    @cpu.register[8].read(0, 8).pack("C*").unpack("Q<")[0],
             #    @cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
-            #])
+            # ])
         elif func == 'xor':
             value = args[0].read_int() ^ args[1].read_int()
             args[0].write_int(value)
@@ -738,18 +738,18 @@ class Instruction:
             self.execute()
         elif func == 'div':
             if self.size == 1:
-                raise "div not implemented for size = 1"
+                raise Exception("div not implemented for size = 1")
             rax = Pointer(self.cpu.register[0], 0, self.size)
             rdx = Pointer(self.cpu.register[2], 0, self.size)
             dividend = (256 ** self.size) * rdx.read_int() + rax.read_int()
             divisor = args[0].read_int()
             if divisor == 0:
-                raise "divide error exception: divisor = 0"
+                raise RuntimeError("divide error exception: divisor = 0")
 
             quotient = dividend / divisor
             remainder = dividend % divisor
             if quotient >= 256 ** self.size:
-                raise "divide error exception: quotient too big: %d (dec) / %x (hex)" % [quotient, quotient]
+                raise RuntimeError("divide error exception: quotient too big: %d (dec) / %x (hex)" % (quotient, quotient))
 
             rax.write_int(quotient)
             rdx.write_int(remainder)
@@ -810,7 +810,7 @@ class Instruction:
                     if times == 1:
                         self.cpu.flags.o = (func == "shr") and orig_highest_bit
                     args[0].write_bit_array(bit_array)
-                if func in  ["shl", "sal"]:
+                if func in ["shl", "sal"]:
                     bit_array.unshift(0)
                     self.cpu.flags.c = bit_array.pop == 1
                     if times == 1:
@@ -854,15 +854,15 @@ class Instruction:
         elif func == 'cpuid':
             # Do nothing
             pass
-        elif func == 'cmc': # Complement Carry Flag
+        elif func == 'cmc':  # Complement Carry Flag
             self.cpu.flags.c = not self.cpu.flags.c
-        elif func == 'clc': # Clear Carry Flag
+        elif func == 'clc':  # Clear Carry Flag
             self.cpu.flags.c = False
-        elif func == 'stc': # Set Carry Flag
+        elif func == 'stc':  # Set Carry Flag
             self.cpu.flags.c = True
-        elif func == 'cld': # Clear Direction Flag
+        elif func == 'cld':  # Clear Direction Flag
             self.cpu.flags.d = False
-        elif func == 'std': # Set Direction Flag
+        elif func == 'std':  # Set Direction Flag
             self.cpu.flags.d = True
         elif func in ['nop', 'pause', "hint_nop"]:
             # do nothing
@@ -900,8 +900,10 @@ class Instruction:
         if func in ["punpckl", "punpckh"]:
             arr = []
             for i in range(self.size / self.xmm_item_size):
-                dest = Pointer.new(self.args[0].mem, self.args[0].pos + i * self.xmm_item_size, self.xmm_item_size)
-                arg2 = Pointer.new(self.args[1].mem, self.args[1].pos + i * self.xmm_item_size, self.xmm_item_size)
+                dest = Pointer.new(self.args[0].mem, self.args[0].pos + i * self.xmm_item_size,
+                                   self.xmm_item_size)
+                arg2 = Pointer.new(self.args[1].mem, self.args[1].pos + i * self.xmm_item_size,
+                                   self.xmm_item_size)
                 arr.append(dest.read())
                 arr.append(arg2.read())
 
@@ -919,9 +921,11 @@ class Instruction:
             order = args[2].read_int()
             data = args[1].read() + [0] * (self.xmm_item_size * 3)
             for i in range(self.size / self.xmm_item_size):
-                dest = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size, self.xmm_item_size)
+                dest = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size,
+                               self.xmm_item_size)
                 shift = (order >> (2*i)) & 0b11
-                dest.write(data[self.xmm_item_size * (i + shift): self.xmm_item_size * (i + 1 + shift)])
+                dest.write(data[self.xmm_item_size * (i + shift):
+                                self.xmm_item_size * (i + 1 + shift)])
         elif func == "pshufl":
             self.func = "pshuf"
             self.execute()
@@ -936,8 +940,9 @@ class Instruction:
     def for_each_xmm_item(self, func):
         args = self.args
         for i in range(self.size / self.xmm_item_size):
-            dest_ptr = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size, self.xmm_item_size)
-            arg_ptr  = Pointer(args[1].mem, args[1].pos + i * self.xmm_item_size, self.xmm_item_size)
+            dest_ptr = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size,
+                               self.xmm_item_size)
+            arg_ptr = Pointer(args[1].mem, args[1].pos + i * self.xmm_item_size, self.xmm_item_size)
             dest = dest_ptr.read_int()
             arg = arg_ptr.read_int()
             dest_ptr.write_int(func(dest, arg))
@@ -945,8 +950,10 @@ class Instruction:
     def for_each_xmm_item_signed(self, func):
         args = self.args
         for i in range(self.size / self.xmm_item_size):
-            dest_ptr = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size, self.xmm_item_size)
-            arg_ptr  = Pointer(args[1].mem, args[1].pos + i * self.xmm_item_size, self.xmm_item_size)
+            dest_ptr = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size,
+                               self.xmm_item_size)
+            arg_ptr = Pointer(args[1].mem, args[1].pos + i * self.xmm_item_size,
+                              self.xmm_item_size)
             dest = dest_ptr.read_int()
             arg = arg_ptr.read_int()
             dest_ptr.write_int(func(dest, arg))
@@ -955,7 +962,8 @@ class Instruction:
         args = self.args
         arg = args[1].read_int()
         for i in range(self.size / self.xmm_item_size):
-            dest_ptr = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size, self.xmm_item_size)
+            dest_ptr = Pointer(args[0].mem, args[0].pos + i * self.xmm_item_size,
+                               self.xmm_item_size)
             dest = dest_ptr.read_int()
             dest_ptr.write_int(func(dest, arg))
 
@@ -1088,25 +1096,25 @@ class Instruction:
     }
 
     # operation size
-    BYTE = "s=1"       # 1 byte
-    LONG = "s=2/4/8"   # 2/4/8 bytes
-    SIMD_16 = "simd16" # 16 bytes, XMM
+    BYTE = "s=1"        # 1 byte
+    LONG = "s=2/4/8"    # 2/4/8 bytes
+    SIMD_16 = "simd16"  # 16 bytes, XMM
 
     SIMD_ITEM_8 = "simd item size = 8"
 
     # arguments
-    REG = "r"    # register
-    R_M = "r/m"  # register / memory
-    IMM = "imm"  # immediate value not longer than 4 bytes
-    IM1 = "imm1" # 1-byte immediate value
-    ACC = "acc"  # accumulator
-    ZERO = "_0_" # constant value of 0
-    ONE = "_1_"  # constant value of 1
-    C_F = "c_f"  # carry flag
-    SIMD_REG = "simd_reg" # MM/XMM ModR/M register
-    SIMD_REGMEM = "simd_remem" # MM/XMM ModR/M register or memory
+    REG = "r"     # register
+    R_M = "r/m"   # register / memory
+    IMM = "imm"   # immediate value not longer than 4 bytes
+    IM1 = "imm1"  # 1-byte immediate value
+    ACC = "acc"   # accumulator
+    ZERO = "_0_"  # constant value of 0
+    ONE = "_1_"   # constant value of 1
+    C_F = "c_f"   # carry flag
+    SIMD_REG = "simd_reg"       # MM/XMM ModR/M register
+    SIMD_REGMEM = "simd_remem"  # MM/XMM ModR/M register or memory
 
-    NOT_IMPLEMENTED = "n/i" # opcode or opcode extension not implemented
+    NOT_IMPLEMENTED = "n/i"     # opcode or opcode extension not implemented
 
     unified_opcode_table = {
         0x69: ["imul", LONG, REG, R_M, IMM],
@@ -1206,13 +1214,13 @@ class Instruction:
             0x00: ["movap", SIMD_16, SIMD_REGMEM, SIMD_REG],
             0x66: ["movap", SIMD_16, SIMD_REGMEM, SIMD_REG],
         },
-        0x0F6C: { 0x66: ["punpckl", SIMD_16, SIMD_ITEM_8, SIMD_REG, SIMD_REGMEM]},
-        0x0F6D: { 0x66: ["punpckh", SIMD_16, SIMD_ITEM_8, SIMD_REG, SIMD_REGMEM]},
+        0x0F6C: {0x66: ["punpckl", SIMD_16, SIMD_ITEM_8, SIMD_REG, SIMD_REGMEM]},
+        0x0F6D: {0x66: ["punpckh", SIMD_16, SIMD_ITEM_8, SIMD_REG, SIMD_REGMEM]},
     }
 
+
 class ModRM_Parser:
-    def __init__(self, stream, prefix, cpu, operand_size, address_size,\
-                 segment_offset):
+    def __init__(self, stream, prefix, cpu, operand_size, address_size, segment_offset):
         self.prefix = prefix
         self.stream = stream
         self.modrm = stream.read
