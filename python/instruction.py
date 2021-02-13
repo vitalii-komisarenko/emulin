@@ -659,15 +659,11 @@ class Instruction:
             # @cpu.stack.pop(@args[0].read_int)
         elif func == "syscall":
             raise "not converted from ruby"
-            # syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
-            # @linux.handle_syscall(syscall_number, [
-            #    @cpu.register[7].read(0, 8).pack("C*").unpack("Q<")[0],
-            #    @cpu.register[6].read(0, 8).pack("C*").unpack("Q<")[0],
-            #    @cpu.register[2].read(0, 8).pack("C*").unpack("Q<")[0],
-            #    @cpu.register[10].read(0, 8).pack("C*").unpack("Q<")[0],
-            #    @cpu.register[8].read(0, 8).pack("C*").unpack("Q<")[0],
-            #    @cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
-            # ])
+            syscall_number = Pointer(self.cpu.register[0], 0, 8).read_int()
+            syscall_args = []
+            for i in [7, 6, 2, 10, 8, 9]:
+                syscall_args.append(Pointer(self.cpu.register[i], 0, 8).read_int())
+            self.linux.handle_syscall(syscall_number, syscall_args)
         elif func == 'xor':
             value = args[0].read_int() ^ args[1].read_int()
             args[0].write_int(value)
