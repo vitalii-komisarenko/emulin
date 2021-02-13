@@ -562,7 +562,7 @@ class Instruction:
             return byte1
 
     def condition_is_met(self, cond=None):
-        if code is None:
+        if cond is None:
             cond = self.cond
 
         if cond is None:
@@ -897,7 +897,7 @@ class Instruction:
             self.for_each_xmm_item_and_constant(lambda dest, arg: dest << arg)
         elif func == "psll":
             self.for_each_xmm_item_and_constant(lambda dest, arg: dest << arg)
-        if func in ["punpckl", "punpckh"]:
+        elif func in ["punpckl", "punpckh"]:
             arr = []
             for i in range(self.size / self.xmm_item_size):
                 dest = Pointer.new(self.args[0].mem, self.args[0].pos + i * self.xmm_item_size,
@@ -935,7 +935,7 @@ class Instruction:
             self.execute()
             args[0].pointer_to_lower_half().write(args[1].pointer_to_lower_half().read())
         else:
-            raise "function not implemented: " + self.func
+            raise Exception("function not implemented: " + self.func)
 
     def for_each_xmm_item(self, func):
         args = self.args
@@ -1223,7 +1223,7 @@ class ModRM_Parser:
     def __init__(self, stream, prefix, cpu, operand_size, address_size, segment_offset):
         self.prefix = prefix
         self.stream = stream
-        self.modrm = stream.read
+        self.modrm = stream.read()
         self.cpu = cpu
         self.operand_size = operand_size
         self.address_size = address_size
