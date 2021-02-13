@@ -104,12 +104,12 @@ class Instruction:
                 raise Exception("bad opcode: 0x%02x" % self.opcode)
 
             funcs = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
-            params = [[BYTE, R_M, REG],
-                      [LONG, R_M, REG],
-                      [BYTE, REG, R_M],
-                      [LONG, REG, R_M],
-                      [BYTE, ACC, IM1],
-                      [LONG, ACC, IMM]]
+            params = [[Instruction.BYTE, Instruction.REGMEM, Instruction.REG],
+                      [Instruction.LONG, Instruction.REGMEM, Instruction.REG],
+                      [Instruction.BYTE, Instruction.REG, Instruction.REGMEM],
+                      [Instruction.LONG, Instruction.REG, Instruction.REGMEM],
+                      [Instruction.BYTE, Instruction.ACC, Instruction.IMM1],
+                      [Instruction.LONG, Instruction.ACC, Instruction.IMM]]
             self.decode_arguments([funcs[self.opcode / 8]] + params[self.opcode % 8])
         elif self.opcode >= 0x50 and self.opcode <= 0x57:
             self.func = "push"
@@ -448,42 +448,42 @@ class Instruction:
         # since modrm parsing relies on it
 
         size = arr[1]
-        if size == BYTE:
+        if size == Instruction.BYTE:
             self.size = 1
-        elif size == LONG:
+        elif size == Instruction.LONG:
             self.size = multi_byte()
-        elif size == SIMD_16:
+        elif size == Instruction.SIMD_16:
             self.size = 16
 
         self.func = arr[0]
         if self.func == "#ROTATE/SHIFT":
             self.func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][self.modrm().opcode_ext()]
-        elif self.func == NOT_IMPLEMENTED:
+        elif self.func == Instruction.NOT_IMPLEMENTED:
             raise "not implemented"
 
         args = arr[2:]
         for arg in args:
-            if arg == REG:
+            if arg == Instruction.REG:
                 self.args.append(self.modrm().register())
-            elif arg == R_M:
+            elif arg == Instruction.REGMEM:
                 self.args.append(self.modrm().register_or_memory())
-            elif arg == SIMD_REG:
+            elif arg == Instruction.SIMD_REG:
                 self.args.append(self.modrm().mm_or_xmm_register())
-            elif arg == SIMD_REGMEM:
+            elif arg == Instruction.SIMD_REGMEM:
                 self.args.append(self.modrm().mm_or_xmm_register_or_memory())
-            elif arg == SIMD_ITEM_8:
+            elif arg == Instruction.SIMD_ITEM_8:
                 self.xmm_item_size = 8
-            elif arg == ACC:
+            elif arg == Instruction.ACC:
                 self.encode_accumulator()
-            elif arg == IM1:
+            elif arg == Instruction.IMM1:
                 self.decode_immediate(1)
-            elif arg == IMM:
+            elif arg == Instruction.IMM:
                 self.decode_immediate_16or32()
-            elif arg == ZERO:
+            elif arg == Instruction.ZERO:
                 self.encode_value(0)
-            elif arg == ONE:
+            elif arg == Instruction.ONE:
                 self.encode_value(1)
-            elif arg == C_F:
+            elif arg == Instruction.CARRY_FLAG:
                 self.encode_value(self.cpu.flags.c)
             else:
                 raise "unknown argument: %s" % arg
@@ -1104,37 +1104,37 @@ class Instruction:
 
     # arguments
     REG = "r"     # register
-    R_M = "r/m"   # register / memory
+    REGMEM = "r/m"   # register / memory
     IMM = "imm"   # immediate value not longer than 4 bytes
-    IM1 = "imm1"  # 1-byte immediate value
+    IMM1 = "imm1"  # 1-byte immediate value
     ACC = "acc"   # accumulator
     ZERO = "_0_"  # constant value of 0
     ONE = "_1_"   # constant value of 1
-    C_F = "c_f"   # carry flag
+    CARRY_FLAG = "c_f"   # carry flag
     SIMD_REG = "simd_reg"       # MM/XMM ModR/M register
     SIMD_REGMEM = "simd_remem"  # MM/XMM ModR/M register or memory
 
     NOT_IMPLEMENTED = "n/i"     # opcode or opcode extension not implemented
 
     unified_opcode_table = {
-        0x69: ["imul", LONG, REG, R_M, IMM],
-        0x6B: ["imul", LONG, REG, R_M, IM1],
-        0x84: ['test', BYTE, R_M, REG],
-        0x85: ['test', LONG, R_M, REG],
-        0x86: ['xchg', BYTE, REG, R_M],
-        0x87: ['xchg', LONG, REG, R_M],
-        0x88: ['mov',  BYTE, R_M, REG],
-        0x89: ['mov',  LONG, R_M, REG],
-        0x8A: ['mov',  BYTE, REG, R_M],
-        0x8B: ['mov',  LONG, REG, R_M],
-        0x8D: ['lea',  LONG, REG, R_M],
+        0x69: ["imul", LONG, REG, REGMEM, IMM],
+        0x6B: ["imul", LONG, REG, REGMEM, IMM1],
+        0x84: ['test', BYTE, REGMEM, REG],
+        0x85: ['test', LONG, REGMEM, REG],
+        0x86: ['xchg', BYTE, REG, REGMEM],
+        0x87: ['xchg', LONG, REG, REGMEM],
+        0x88: ['mov',  BYTE, REGMEM, REG],
+        0x89: ['mov',  LONG, REGMEM, REG],
+        0x8A: ['mov',  BYTE, REG, REGMEM],
+        0x8B: ['mov',  LONG, REG, REGMEM],
+        0x8D: ['lea',  LONG, REG, REGMEM],
         0x9E: ["sahf"],
         0x9F: ["lahf"],
         0xA4: ["movs", BYTE],
         0xA5: ["movs", LONG],
         0xA6: ["cmps", BYTE],
         0xA7: ["cmps", LONG],
-        0xA8: ["test", BYTE, ACC, IM1],
+        0xA8: ["test", BYTE, ACC, IMM1],
         0xA9: ["test", LONG, ACC, IMM],
         0xAA: ["stos", BYTE],
         0xAB: ["stos", LONG],
@@ -1142,12 +1142,12 @@ class Instruction:
         0xAD: ["lods", LONG],
         0xAE: ["scas", BYTE],
         0xAF: ["scas", LONG],
-        0xC0: ["#ROTATE/SHIFT", BYTE, R_M, IM1],
-        0xC1: ["#ROTATE/SHIFT", LONG, R_M, IM1],
-        0xD0: ["#ROTATE/SHIFT", BYTE, R_M, ONE],
-        0xD1: ["#ROTATE/SHIFT", LONG, R_M, ONE],
-        0xD2: ["#ROTATE/SHIFT", BYTE, R_M, C_F],
-        0xD3: ["#ROTATE/SHIFT", LONG, R_M, C_F],
+        0xC0: ["#ROTATE/SHIFT", BYTE, REGMEM, IMM1],
+        0xC1: ["#ROTATE/SHIFT", LONG, REGMEM, IMM1],
+        0xD0: ["#ROTATE/SHIFT", BYTE, REGMEM, ONE],
+        0xD1: ["#ROTATE/SHIFT", LONG, REGMEM, ONE],
+        0xD2: ["#ROTATE/SHIFT", BYTE, REGMEM, CARRY_FLAG],
+        0xD3: ["#ROTATE/SHIFT", LONG, REGMEM, CARRY_FLAG],
         0xF5: ['cmc'],
         0xF8: ['clc'],
         0xF9: ['stc'],
@@ -1157,38 +1157,38 @@ class Instruction:
         0xFD: ['std'],
         0x0F05: ["syscall"],
         0x0FA2: ['cpuid'],
-        0x0FAF: ['imul', LONG, REG, R_M],
-        0x0FBC: ['bsf',  LONG, REG, R_M],
-        0x0FBD: ['bsr',  LONG, REG, R_M],
-        0x0FC0: ['xadd', BYTE, R_M, REG],
-        0x0FC1: ['xadd', LONG, R_M, REG],
+        0x0FAF: ['imul', LONG, REG, REGMEM],
+        0x0FBC: ['bsf',  LONG, REG, REGMEM],
+        0x0FBD: ['bsr',  LONG, REG, REGMEM],
+        0x0FC0: ['xadd', BYTE, REGMEM, REG],
+        0x0FC1: ['xadd', LONG, REGMEM, REG],
     }
 
     opcodes_with_extenstions = {
-        0xC6: {0: ["mov", BYTE, R_M, IMM]},
-        0xC7: {0: ["mov", LONG, R_M, IMM]},
+        0xC6: {0: ["mov", BYTE, REGMEM, IMM]},
+        0xC7: {0: ["mov", LONG, REGMEM, IMM]},
         0xFE: {
-            0: ["inc", BYTE, R_M, ONE],
-            1: ["dec", BYTE, R_M, ONE],
+            0: ["inc", BYTE, REGMEM, ONE],
+            1: ["dec", BYTE, REGMEM, ONE],
         },
         0xF6: {
-            0: ["test", BYTE, R_M, IMM],
-            1: ["test", BYTE, R_M, IMM],
+            0: ["test", BYTE, REGMEM, IMM],
+            1: ["test", BYTE, REGMEM, IMM],
             2: [NOT_IMPLEMENTED],
-            3: ["neg", BYTE, ZERO, R_M],
+            3: ["neg", BYTE, ZERO, REGMEM],
             4: [NOT_IMPLEMENTED],
             5: [NOT_IMPLEMENTED],
             6: [NOT_IMPLEMENTED],
             7: [NOT_IMPLEMENTED],
         },
         0xF6: {
-            0: ["test", LONG, R_M, IMM],
-            1: ["test", LONG, R_M, IMM],
+            0: ["test", LONG, REGMEM, IMM],
+            1: ["test", LONG, REGMEM, IMM],
             2: [NOT_IMPLEMENTED],
-            3: ["neg", LONG, ZERO, R_M],
+            3: ["neg", LONG, ZERO, REGMEM],
             4: [NOT_IMPLEMENTED],
             5: [NOT_IMPLEMENTED],
-            6: ["div", LONG, R_M],
+            6: ["div", LONG, REGMEM],
             7: [NOT_IMPLEMENTED],
         }
     }
