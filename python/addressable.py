@@ -56,13 +56,13 @@ class Addressable:
 
     def read_int(self, pos, size):
         byte_arr = self.read(pos, size)
-        string = struct.pack("B" * size, byte_arr)
-        return struct.unpack(string, self.pack_scheme(size))[0]
+        string = struct.pack("B" * size, *byte_arr)
+        return struct.unpack(Addressable.pack_scheme(size), string)[0]
 
     def read_signed(self, pos, size):
         byte_arr = self.read(pos, size)
-        string = struct.pack("B" * size, byte_arr)
-        return struct.unpack(string, self.pack_scheme(size).lower())[0]
+        string = struct.pack("B" * size, *byte_arr)
+        return struct.unpack(Addressable.pack_scheme(size).lower(), string)[0]
 
     def pack_scheme(size):
         if size == 1:

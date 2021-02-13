@@ -78,35 +78,35 @@ class FlagsRegister:
 
     @property
     def o(self):
-        return self._o
+        return self._flag_value(self._o)
 
     @property
     def d(self):
-        return self._d
+        return self._flag_value(self._d)
 
     @property
     def i(self):
-        return self._i
+        return self._flag_value(self._i)
 
     @property
     def s(self):
-        return self._s
+        return self._flag_value(self._s)
 
     @property
     def z(self):
-        return self._z
+        return self._flag_value(self._z)
 
     @property
     def a(self):
-        return self._a
+        return self._flag_value(self._a)
 
     @property
     def p(self):
-        return self._p
+        return self._flag_value(self._p)
 
     @property
     def c(self):
-        return self._c
+        return self._flag_value(self._c)
 
     def _flag_value(self, flag):
         if flag:
@@ -115,33 +115,33 @@ class FlagsRegister:
             return 0
 
     @o.setter
-    def o(self):
-        return self._flag_value(self._o)
+    def o(self, value):
+        self._o = value
 
     @d.setter
-    def d(self):
-        return self._flag_value(self._d)
+    def d(self, value):
+        self._d = value
 
     @i.setter
-    def i(self):
-        return self._flag_value(self._i)
+    def i(self, value):
+        self._i = value
 
     @s.setter
-    def s(self):
-        return self._flag_value(self._s)
+    def s(self, value):
+        self._s = value
 
     @z.setter
-    def z(self):
-        return self._flag_value(self._z)
+    def z(self, value):
+        self._z = value
 
     @a.setter
-    def a(self):
-        return self._flag_value(self._a)
+    def a(self, value):
+        self._a = value
 
     @p.setter
-    def p(self):
-        return self._flag_value(self._p)
+    def p(self, value):
+        self._p = value
 
     @c.setter
-    def c(self):
-        return self._flag_value(self._c)
+    def c(self, value):
+        self._c = value

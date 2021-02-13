@@ -8,7 +8,7 @@ class Stack:
 
     def push(self, data):
         self.pos -= len(data)
-        Pointer(self.mem, self.pos, data.length).write(data)
+        Pointer(self.mem, self.pos, len(data)).write(data)
 
     def pop(self, size):
         ret = Pointer(self.mem, self.pos, size).read()

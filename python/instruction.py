@@ -110,7 +110,7 @@ class Instruction:
                       [Instruction.LONG, Instruction.REG, Instruction.REGMEM],
                       [Instruction.BYTE, Instruction.ACC, Instruction.IMM1],
                       [Instruction.LONG, Instruction.ACC, Instruction.IMM]]
-            self.decode_arguments([funcs[self.opcode / 8]] + params[self.opcode % 8])
+            self.decode_arguments([funcs[self.opcode // 8]] + params[self.opcode % 8])
         elif self.opcode >= 0x50 and self.opcode <= 0x57:
             self.func = "push"
             self.size = self.multi_byte()
@@ -409,39 +409,39 @@ class Instruction:
             else:
                 self.encode_value(0)
         else:
-            if self.opcode in mm_xmm_reg_regmem_opcodes:
+            if self.opcode in self.mm_xmm_reg_regmem_opcodes:
                 arr = mm_xmm_reg_regmem_opcodes[self.opcode]
                 self.func = arr[0]
                 self.xmm_item_size = arr[1]
                 self.size = mm_or_xmm_operand_size
                 self.args.append(self.modrm().mm_or_xmm_register())
                 self.args.append(self.modrm().mm_or_xmm_register_or_memory())
-            elif self.opcode in mm_xmm_reg_regmem_opcodes_signed:
+            elif self.opcode in self.mm_xmm_reg_regmem_opcodes_signed:
                 arr = mm_xmm_reg_regmem_opcodes_signed[self.opcode]
                 self.func = arr[0]
                 self.xmm_item_size = arr[1]
                 self.size = self.mm_or_xmm_operand_size()
                 self.args.append(self.modrm().mm_or_xmm_register())
                 self.args.append(self.modrm().mm_or_xmm_register_or_memory())
-            elif self.opcode in unified_opcode_table:
-                arr = unified_opcode_table[self.opcode]
+            elif self.opcode in self.unified_opcode_table:
+                arr = self.unified_opcode_table[self.opcode]
                 self.decode_arguments(arr)
-            elif self.opcode in opcodes_with_extenstions:
+            elif self.opcode in self.opcodes_with_extenstions:
                 ext = self.modrm().opcode_ext()
-                if ext in opcodes_with_extenstions[self.opcode]:
-                    arr = opcodes_with_extenstions[self.opcode][ext]
+                if ext in self.opcodes_with_extenstions[self.opcode]:
+                    arr = self.opcodes_with_extenstions[self.opcode][ext]
                     self.decode_arguments(arr)
                 else:
                     self.unspecified_opcode_extension()
-            elif self.opcode in opcodes_with_simd_prefix:
+            elif self.opcode in self.opcodes_with_simd_prefix:
                 simd_prefix = self.prefix.simd_prefix
-                if simd_prefix in opcodes_with_simd_prefix[self.opcode]:
-                    arr = opcodes_with_simd_prefix[self.opcode][simd_prefix]
+                if simd_prefix in self.opcodes_with_simd_prefix[self.opcode]:
+                    arr = self.opcodes_with_simd_prefix[self.opcode][simd_prefix]
                     self.decode_arguments(arr)
                 else:
-                    raise "unspecified simd prefix"
+                    raise Exception("unspecified simd prefix")
             else:
-                raise "not implemented: opcode 0x%x" % self.opcode
+                raise Exception("not implemented: opcode 0x%x" % self.opcode)
 
     def decode_arguments(self, arr):
         # size needs to be decoded first in case opcode extension is used
@@ -451,7 +451,7 @@ class Instruction:
         if size == Instruction.BYTE:
             self.size = 1
         elif size == Instruction.LONG:
-            self.size = multi_byte()
+            self.size = self.multi_byte()
         elif size == Instruction.SIMD_16:
             self.size = 16
 
@@ -494,14 +494,14 @@ class Instruction:
         else:
             return 8
 
-    def encode_regiser(self, reg):
+    def encode_register(self, reg):
         self.args.append(Pointer(self.cpu.register[reg], 0, self.size))
 
     def encode_accumulator(self):
-        self.encode_regiser(0)
+        self.encode_register(0)
 
     def encode_counter(self):
-        self.encode_regiser(1)
+        self.encode_register(1)
 
     def decode_register_from_opcode(self):
         reg = (self.opcode % 8) + 8 * self.prefix.rex_b
@@ -771,7 +771,7 @@ class Instruction:
             self.cpu.flags.z = args[1].read_int() == 0
             if not self.cpu.flags.z:
                 args[0].write_int(args[1].read_bit_array()[-1])
-        if func in ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"]:
+        elif func in ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"]:
             times = args[1].read_int() % (2 ** self.size)
             bit_array = args[0].read_bit_array()
             for i in range(times):
