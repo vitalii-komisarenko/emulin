@@ -33,7 +33,7 @@ try:
         cpu.exectute_next_instruction()
 except Exception:
     for i in range(16):
-        print("register #%d -> " % i)
+        print("register #%d -> " % i, end='')
         cpu.register[i].debug()
 
     print(f"flags: {cpu.flags}")

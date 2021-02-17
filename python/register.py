@@ -23,8 +23,8 @@ class Register(Addressable):
         super().write(pos, data)
 
     def debug(self):
-        bytes = [self.mem.get(i) for i in reversed(range(8, 0))]
-        print(':'.join(['{:02x}'.format(byte) for byte in bytes]))
+        bytes = self.read(0, 8)
+        print(':'.join(['{:02x}'.format(byte) for byte in reversed(bytes)]))
 
 
 class MMRegister(Addressable):
