@@ -11,8 +11,8 @@ mem = Memory.new
 
 # Load program segments into the memory
 elf.program_header.entries.each do |ph|
-	puts "writing a segment: %d bytes at position 0x%x" % [ph.data_to_load_to_memory.length, ph.p_vaddr]
-	mem.write(ph.p_vaddr, ph.data_to_load_to_memory)
+    puts "writing a segment: %d bytes at position 0x%x" % [ph.data_to_load_to_memory.length, ph.p_vaddr]
+    mem.write(ph.p_vaddr, ph.data_to_load_to_memory)
 end
 
 cpu = Cpu.new(mem, elf.elf_header.e_entry, 0x123456789ABCDEF)
@@ -27,18 +27,18 @@ cpu.gs = 0xeeeeeeeeeeee
 cpu.fs = 0xf0f0f0f0f0f0
 
 begin
-	while !cpu.stopped
-		puts "====="
-		puts "pos = 0x%x" % cpu.mem_stream.pos
-		cpu.exectute_next_instruction
-	end
+    while !cpu.stopped
+        puts "====="
+        puts "pos = 0x%x" % cpu.mem_stream.pos
+        cpu.exectute_next_instruction
+    end
 rescue
-	for i in 0..15
-		print "register #%d -> " % i
-		cpu.register[i].debug
-	end
-	puts "flags: " + cpu.flags.to_s
-	puts "stack: 0x%x" % cpu.stack.pos
+    for i in 0..15
+        print "register #%d -> " % i
+        cpu.register[i].debug
+    end
+    puts "flags: " + cpu.flags.to_s
+    puts "stack: 0x%x" % cpu.stack.pos
 
-	raise
+    raise
 end
