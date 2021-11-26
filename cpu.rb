@@ -56,7 +56,7 @@ class Cpu
 end
 
 class FlagsRegister
-    attr_accessor :o, :d, :i, :s, :z, :a, :p, :c
+    attr_reader :o, :d, :i, :s, :z, :a, :p, :c
 
     def initialize
         @o = false
@@ -67,6 +67,51 @@ class FlagsRegister
         @a = false
         @p = false
         @c = false
+    end
+
+    # Flags are stored as booleans.
+    # This method allows to write integers as flag value.
+    def self.setter_wrapper(value)
+        case value.class.name
+        when "TrueClass", "FalseClass"
+            return value
+        when "Fixnum"
+            return value == 0 ? false : true
+        else
+            raise "Unsupported class " + value.class.name + " value = " + value.to_s
+        end
+    end
+
+    def o=(value)
+        @o = self.class.setter_wrapper(value)
+    end
+    
+    def d=(value)
+        @d = self.class.setter_wrapper(value)
+    end
+    
+    def i=(value)
+        @i = self.class.setter_wrapper(value)
+    end
+    
+    def s=(value)
+        @s = self.class.setter_wrapper(value)
+    end
+    
+    def z=(value)
+        @z = self.class.setter_wrapper(value)
+    end
+    
+    def a=(value)
+        @a = self.class.setter_wrapper(value)
+    end
+    
+    def p=(value)
+        @p = self.class.setter_wrapper(value)
+    end
+    
+    def c=(value)
+        @c = self.class.setter_wrapper(value)
     end
     
     def to_s
