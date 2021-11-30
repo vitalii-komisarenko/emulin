@@ -824,13 +824,13 @@ class Instruction
             # Do nothing
         when 'cmc' # Complement Carry Flag
             @cpu.flags.c = !@cpu.flags.c
-        when 'clc', # Clear Carry Flag
+        when 'clc' # Clear Carry Flag
             @cpu.flags.c = false
-        when 'stc', # Set Carry Flag
+        when 'stc' # Set Carry Flag
             @cpu.flags.c = true
-        when 'cld', # Clear Direction Flag
+        when 'cld' # Clear Direction Flag
             @cpu.flags.d = false
-        when 'std', # Set Direction Flag
+        when 'std' # Set Direction Flag
             @cpu.flags.d = true
         when 'nop', 'pause', "hint_nop"
             # do nothing
