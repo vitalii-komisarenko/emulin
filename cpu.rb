@@ -4,7 +4,7 @@ require_relative "register"
 require_relative "stack"
 
 class Cpu
-    attr_reader :register, :mm_register, :xmm_register
+    attr_reader :register, :mm_register, :xmm_register, :instructions_executed
     attr_writer :linux
     attr_accessor :stopped, :flags, :stack, :mem_stream, :fs, :gs
     
@@ -18,6 +18,7 @@ class Cpu
         @stack = Stack.new(mem, stack_bottom)
         @fs = 0
         @gs = 0
+        @instructions_executed = 0
         for i in 0..15
             reg = Register.new
             reg.write(0, [0] * 8)
@@ -54,6 +55,8 @@ class Cpu
     def exectute_next_instruction
         instruction = Instruction.new(@mem_stream, self, @linux)
         instruction.execute
+        @instructions_executed += 1
+        @flags.r = true
     end
 
     # similar to `info registers` in GDB
@@ -84,7 +87,7 @@ class Cpu
             [flags.r, 0x10000, "RF"]
         ]
 
-        flags_value = 0
+        flags_value = @instructions_executed > 0 ? 2 : 0
         flags_str_arr = []
 
         for i in flags_arr
@@ -123,7 +126,7 @@ class FlagsRegister
         @a = false
         @p = false
         @c = false
-        @r = true
+        @r = false
     end
 
     # Flags are stored as booleans.
