@@ -21,20 +21,9 @@ linux = Linux.new(cpu, mem)
 
 cpu.linux = linux
 
-begin
-    while !cpu.stopped
-        puts "====="
-        puts "pos = 0x%x" % cpu.mem_stream.pos
-        puts cpu
-        cpu.exectute_next_instruction
-    end
-rescue
-    for i in 0..15
-        print "register #%d -> " % i
-        cpu.register[i].debug
-    end
-    puts "flags: " + cpu.flags.to_s
-    puts "stack: 0x%x" % cpu.stack.pos
-
-    raise
+while !cpu.stopped
+    puts "====="
+    puts "pos = 0x%x" % cpu.mem_stream.pos
+    puts cpu
+    cpu.exectute_next_instruction
 end

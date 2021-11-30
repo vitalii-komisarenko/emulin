@@ -24,19 +24,6 @@ class Register < Addressable
         
         super(pos, data)
     end
-    
-    def debug
-        puts "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x" % [
-            @mem.fetch(7, 0),
-            @mem.fetch(6, 0),
-            @mem.fetch(5, 0),
-            @mem.fetch(4, 0),
-            @mem.fetch(3, 0),
-            @mem.fetch(2, 0),
-            @mem.fetch(1, 0),
-            @mem.fetch(0, 0),
-        ]
-    end
 end
 
 class MMRegister < Addressable

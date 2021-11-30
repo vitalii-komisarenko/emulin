@@ -177,17 +177,4 @@ class FlagsRegister
     def r=(value)
         @r = self.class.setter_wrapper(value)
     end
-
-    def to_s
-        ret = ""
-        ret += @o ? 'o' : '-'
-        ret += @d ? 'd' : '-'
-        ret += @i ? 'i' : '-'
-        ret += @s ? 's' : '-'
-        ret += @z ? 'z' : '-'
-        ret += @a ? 'a' : '-'
-        ret += @p ? 'p' : '-'
-        ret += @c ? 'c' : '-'
-        return ret
-    end
 end

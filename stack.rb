@@ -1,8 +1,6 @@
 require_relative "pointer"
 
 class Stack
-    attr_reader :pos
-
     def initialize(mem, stack_buttom)
         @mem = mem
         @pos = stack_buttom
