@@ -1,0 +1,8 @@
+starti
+
+while 1
+i r
+stepi
+end
+
+quit

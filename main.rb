@@ -15,21 +15,17 @@ elf.program_header.entries.each do |ph|
     mem.write(ph.p_vaddr, ph.data_to_load_to_memory)
 end
 
-cpu = Cpu.new(mem, elf.elf_header.e_entry, 0x123456789ABCDEF)
+cpu = Cpu.new(mem, elf.elf_header.e_entry, 0x7fffffffdee0)
 
 linux = Linux.new(cpu, mem)
 
 cpu.linux = linux
 
-# set gs and fs to non-zero values
-# TODO: initialize to meaningful values
-cpu.gs = 0xeeeeeeeeeeee
-cpu.fs = 0xf0f0f0f0f0f0
-
 begin
     while !cpu.stopped
         puts "====="
         puts "pos = 0x%x" % cpu.mem_stream.pos
+        puts cpu
         cpu.exectute_next_instruction
     end
 rescue

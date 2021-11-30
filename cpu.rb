@@ -20,10 +20,12 @@ class Cpu
         @gs = 0
         for i in 0..15
             reg = Register.new
-            reg.write(0, [i, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
-            reg.name = "reg #%d %s" % [i, @@reg_names[i]]
+            reg.write(0, [0] * 8)
+            reg.name = @@reg_names[i]
             @register.push reg
         end
+
+        Pointer.new(@register[4], 0, 8).write_int(stack_bottom)
 
         for i in 0..31
             reg = MMRegister.new
@@ -53,20 +55,75 @@ class Cpu
         instruction = Instruction.new(@mem_stream, self, @linux)
         instruction.execute
     end
+
+    # similar to `info registers` in GDB
+    def to_s
+        table = []
+
+        for i in [0, 3, 1, 2, 6, 7, 5, 4] + (8..15).to_a
+            value = @register[i].read_int(0, 8)
+
+            table << [
+                @register[i].name,
+                "0x" + value.to_s(16),
+                ([4, 5].include? i) ? "0x" + value.to_s(16) : value.to_s
+            ]
+        end
+
+        table << ["rip", "0x" + rip.to_s(16), "0x" + rip.to_s(16)]
+
+        flags_arr = [
+            [flags.c, 0x0001, "CF"],
+            [flags.p, 0x0004, "PF"],
+            [flags.a, 0x0010, "AF"],
+            [flags.z, 0x0040, "ZF"],
+            [flags.s, 0x0080, "SF"],
+            [flags.i, 0x0200, "IF"],
+            [flags.d, 0x0400, "DF"],
+            [flags.o, 0x0800, "OF"],
+            [flags.r, 0x10000, "RF"]
+        ]
+
+        flags_value = 0
+        flags_str_arr = []
+
+        for i in flags_arr
+            if i[0]
+                flags_value += i[1]
+                flags_str_arr << i[2]
+            end
+        end
+
+        table << ["eflags", "0x" + flags_value.to_s(16), (["["] + flags_str_arr + ["]"]).join(" ")]
+
+        table << ["cs", "0x33", "51"]
+        table << ["ss", "0x2b", "43"]
+        table << ["ds", "0x0", "0"]
+        table << ["es", "0x0", "0"]
+        table << ["fs", "0x" + @fs.to_s(16), @fs.to_s]
+        table << ["gs", "0x" + @gs.to_s(16), @gs.to_s]
+
+        res = ""
+        for line in table
+            res += line[0].ljust(15, ' ') + line[1].ljust(20, ' ') + line[2] + "\n"
+        end
+        res
+    end
 end
 
 class FlagsRegister
-    attr_reader :o, :d, :i, :s, :z, :a, :p, :c
+    attr_reader :o, :d, :i, :s, :z, :a, :p, :c, :r
 
     def initialize
         @o = false
         @d = false
-        @i = false
+        @i = true
         @s = false
         @z = false
         @a = false
         @p = false
         @c = false
+        @r = true
     end
 
     # Flags are stored as booleans.
@@ -114,6 +171,10 @@ class FlagsRegister
         @c = self.class.setter_wrapper(value)
     end
     
+    def r=(value)
+        @r = self.class.setter_wrapper(value)
+    end
+
     def to_s
         ret = ""
         ret += @o ? 'o' : '-'
