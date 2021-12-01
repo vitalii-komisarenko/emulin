@@ -105,11 +105,11 @@ class Instruction
             decode_arguments([funcs[@opcode / 8]] + params[@opcode % 8])
         when 0x50..0x57
             @func = "push"
-            @size = multi_byte
+            @size = @prefix.operand_size_overridden ? 2 : 8
             decode_register_from_opcode
         when 0x58..0x5F
             @func = "pop"
-            @size = multi_byte
+            @size = @prefix.operand_size_overridden ? 2 : 8
             decode_register_from_opcode
         when 0x63
             @func = "movsxd"

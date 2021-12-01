@@ -1,19 +1,19 @@
 require_relative "pointer"
 
 class Stack
-    def initialize(mem, stack_buttom)
+    def initialize(mem, rsp)
         @mem = mem
-        @pos = stack_buttom
+        @rsp = Pointer.new(rsp, 0, 8)
     end
     
     def push(data)
-        @pos -= data.length
-        Pointer.new(@mem, @pos, data.length).write(data)
+        @rsp.write_int(@rsp.read_int - data.length)
+        Pointer.new(@mem, @rsp.read_int, data.length).write(data)
     end
     
     def pop(size)
-        ret = Pointer.new(@mem, @pos, size).read
-        @pos += size
+        ret = Pointer.new(@mem, @rsp.read_int, size).read
+        @rsp.write_int(@rsp.read_int + size)
         return ret
     end
 end

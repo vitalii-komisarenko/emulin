@@ -15,7 +15,6 @@ class Cpu
         @mem_stream = Stream.new(mem, entry_point)
         @stopped = false
         @flags = FlagsRegister.new
-        @stack = Stack.new(mem, stack_bottom)
         @fs = 0
         @gs = 0
         @instructions_executed = 0
@@ -25,8 +24,10 @@ class Cpu
             reg.name = @@reg_names[i]
             @register.push reg
         end
+        @stack = Stack.new(mem, @register[4])
 
         Pointer.new(@register[4], 0, 8).write_int(stack_bottom)
+        Pointer.new(mem, stack_bottom, 8).write_int(1) # Hardcode argc = 1
 
         for i in 0..31
             reg = MMRegister.new
