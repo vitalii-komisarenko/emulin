@@ -449,6 +449,10 @@ class Instruction
                 raise "not implemented: opcode 0x%x" % @opcode
             end
         end
+
+        for arg in @args
+            arg.read_size = @args[0].size
+        end
     end
     
     def decode_arguments(arr)
