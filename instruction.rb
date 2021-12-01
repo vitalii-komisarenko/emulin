@@ -1013,8 +1013,12 @@ class Instruction
                 @cpu.flags.s = Utils.highest_bit_set(value, size)
             when 'z' # zero flag
                 @cpu.flags.z = value == 0
-            when 'p' # parity flag -- check if the lowest bit is zero
-                @cpu.flags.p = value & 1 == 0
+            when 'p' # parity flag
+                bit_count = 0
+                for i in 0..7
+                    bit_count += value[i]
+                end
+                @cpu.flags.p = (bit_count % 2 == 0)
             when '.', '-'
             else
                 raise "unsupported flag: " + flag
