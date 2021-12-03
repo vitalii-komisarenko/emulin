@@ -23,7 +23,6 @@ cpu.linux = linux
 
 while !cpu.stopped
     puts "====="
-    puts "pos = 0x%x" % cpu.mem_stream.pos
     puts cpu
     cpu.exectute_next_instruction
 end

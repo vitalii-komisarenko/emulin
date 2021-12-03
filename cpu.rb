@@ -6,7 +6,7 @@ require_relative "stack"
 class Cpu
     attr_reader :register, :mm_register, :xmm_register, :instructions_executed
     attr_writer :linux
-    attr_accessor :stopped, :flags, :stack, :mem_stream, :fs, :gs
+    attr_accessor :stopped, :flags, :stack, :fs, :gs
     
     def initialize(mem, entry_point, stack_bottom)
         @register = []
@@ -107,7 +107,7 @@ class Cpu
         table << ["fs", "0x" + @fs.to_s(16), @fs.to_s]
         table << ["gs", "0x" + @gs.to_s(16), @gs.to_s]
 
-        res = ""
+        res = "0x" + rip.to_s(16).rjust(16, '0') + "\n"
         for line in table
             res += line[0].ljust(15, ' ') + line[1].ljust(20, ' ') + line[2] + "\n"
         end

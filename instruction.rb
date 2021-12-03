@@ -622,7 +622,7 @@ class Instruction
     
     def execute
         puts "opcode: %x" % @opcode
-        puts @func
+        puts "mnemonic: %s" % @func
         puts "condition: %s" % (@cond.nil? ? "none" : "%d" % @cond)
         for arg in @args
             puts "arg = %s pos=%x size=%d ==> %s" % [arg.mem.name, arg.pos, arg.size, arg.debug_value]
