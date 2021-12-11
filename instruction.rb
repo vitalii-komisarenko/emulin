@@ -689,7 +689,10 @@ class Instruction
         when 'add', 'adc', 'inc'
             highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
             highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
-            
+
+            four_bits_1 = @args[0].read_int & 0xF
+            four_bits_2 = @args[1].read_int & 0xF
+
             cf = ((@func == 'adc') && @cpu.flags.c) ? 1 : 0
             value = @args[0].read_int + @args[1].read_signed + cf
             @args[0].write_int value
@@ -700,12 +703,15 @@ class Instruction
             
             @cpu.flags.o = (highest_res && !highest_bit1 && !highest_bit2) ||
                            (!highest_res && highest_bit1 && highest_bit2)
+            @cpu.flags.a = (four_bits_1 + four_bits_2 + cf >= 16)
 
             update_flags("...sz.p.", value, @args[0].size)
-            # TODO: @cpu.flags.a
         when 'sub', 'sbb', 'cmp', 'dec', 'neg'
             highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
             highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
+
+            four_bits_1 = @args[0].read_int & 0xF
+            four_bits_2 = @args[1].read_int & 0xF
 
             cf = ((@func == 'sbb') && @cpu.flags.c) ? 1 : 0
             value = @args[0].read_int - @args[1].read_signed - cf
@@ -717,7 +723,7 @@ class Instruction
             highest_res = value[2 ** (8 * @size - 1)] == 1
             @cpu.flags.o = (!highest_bit1 && highest_bit2 && highest_res) ||
                            (highest_bit1 && !highest_bit2 && !highest_res)
-            # TODO: @cpu.flags.a
+            @cpu.flags.a = (four_bits_1 - four_bits_2 - cf < 0)
         when 'xadd'
             @func = 'xchg'
             execute
