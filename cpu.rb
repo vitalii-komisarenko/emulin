@@ -70,7 +70,7 @@ class Cpu
             table << [
                 @register[i].name,
                 "0x" + value.to_s(16),
-                ([4, 5].include? i) ? "0x" + value.to_s(16) : value.to_s
+                ([4, 5].include? i) ? "0x" + value.to_s(16) : [value].pack('Q').unpack('q').first.to_s
             ]
         end
 
