@@ -1,4 +1,8 @@
+unset env
+set env BASH_ENV=/dev/null
+
 starti
+show env
 
 while 1
 i r

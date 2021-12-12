@@ -28,6 +28,12 @@ class Addressable
             @mem[(pos + i) % @@MAX_ADDR] = data[i]
         end
     end
+
+    def write_null_terminated_string(pos, str)
+        arr = str.bytes + [0]
+        write(pos, arr)
+        return pos + arr.length
+    end
     
     def write_bit_array(pos, bitarray)
         raise "Bit array does not map to byte array" unless bitarray.length % 8 == 0
