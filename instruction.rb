@@ -720,7 +720,7 @@ class Instruction
 
             @cpu.flags.c = value < 0 unless @func == "dec"
 
-            highest_res = value[2 ** (8 * @size - 1)] == 1
+            highest_res = value[8 * @size - 1] == 1
             @cpu.flags.o = (!highest_bit1 && highest_bit2 && highest_res) ||
                            (highest_bit1 && !highest_bit2 && !highest_res)
             @cpu.flags.a = (four_bits_1 - four_bits_2 - cf < 0)
