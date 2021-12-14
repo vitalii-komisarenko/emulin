@@ -28,6 +28,16 @@ class Linux
             @cpu.stopped = true
         when 102, 104, 107, 108 # getuid, getgid, geteuid, getegid
             syscall_return_int 1000 # default UID of the first user on Ubuntu
+        when 158
+            code = args[0]
+            case code
+            when 0x1002
+                @cpu.fs = args[1]
+            when 0x3001
+                syscall_return_int -22 # EINVAL
+            else
+                raise "Not implemented. Code = 0x%x" % code
+            end
         else
             raise "syscall not implemented: %d (0x%x)" % [number, number]
         end
