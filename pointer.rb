@@ -1,5 +1,3 @@
-require_relative "utils"
-
 class Pointer
     attr_reader :mem, :pos
     attr_accessor :size, :read_size

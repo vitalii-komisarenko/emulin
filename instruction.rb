@@ -687,8 +687,8 @@ class Instruction
             @cpu.flags.o = false
             @cpu.flags.c = false
         when 'add', 'adc', 'inc'
-            highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
-            highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
+            highest_bit1 = @args[0].highest_bit_set
+            highest_bit2 = @args[1].highest_bit_set
 
             four_bits_1 = @args[0].read_int & 0xF
             four_bits_2 = @args[1].read_int & 0xF
@@ -699,7 +699,7 @@ class Instruction
 
             @cpu.flags.c = value >= 2 ** (8 * @args[0].size) unless @func == "inc"
 
-            highest_res  = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
+            highest_res  = @args[0].highest_bit_set
             
             @cpu.flags.o = (highest_res && !highest_bit1 && !highest_bit2) ||
                            (!highest_res && highest_bit1 && highest_bit2)
@@ -707,8 +707,8 @@ class Instruction
 
             update_flags("...sz.p.", value, @args[0].size)
         when 'sub', 'sbb', 'cmp', 'dec', 'neg'
-            highest_bit1 = Utils.highest_bit_set(@args[0].read_int, @args[0].size)
-            highest_bit2 = Utils.highest_bit_set(@args[1].read_int, @args[1].size)
+            highest_bit1 = @args[0].highest_bit_set
+            highest_bit2 = @args[1].highest_bit_set
 
             four_bits_1 = @args[0].read_int & 0xF
             four_bits_2 = @args[1].read_int & 0xF
@@ -1016,7 +1016,7 @@ class Instruction
         for flag in pattern.split(//)
             case flag
             when 's' # sign flag
-                @cpu.flags.s = Utils.highest_bit_set(value, size)
+                @cpu.flags.s = (value[8 * size - 1] == 1)
             when 'z' # zero flag
                 @cpu.flags.z = value == 0
             when 'p' # parity flag
