@@ -4,6 +4,8 @@ set env BASH_ENV=/dev/null
 starti
 show env
 
+dump binary memory /tmp/emulin_stack_image.bin 0x7fffffffedc0 0x7ffffffff000
+
 while 1
 i r
 stepi
