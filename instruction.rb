@@ -674,18 +674,21 @@ class Instruction
             update_flags("...sz.p.", value, @args[0].size)
             @cpu.flags.o = false
             @cpu.flags.c = false
+            @cpu.flags.a = false # not defined but not set on my computer
         when 'or'
             value = @args[0].read_int | @args[1].read_int
             @args[0].write_int value
             update_flags("...sz.p.", value, @args[0].size)
             @cpu.flags.o = false
             @cpu.flags.c = false
+            @cpu.flags.a = false # not defined but not set on my computer
         when 'and', 'test'
             value = @args[0].read_int & @args[1].read_int
             @args[0].write_int(value) if @func == 'and'
             update_flags("...sz.p.", value, @args[0].size)
             @cpu.flags.o = false
             @cpu.flags.c = false
+            @cpu.flags.a = false # not defined but not set on my computer
         when 'add', 'adc', 'inc'
             highest_bit1 = @args[0].highest_bit_set
             highest_bit2 = @args[1].highest_bit_set
