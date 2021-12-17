@@ -843,7 +843,7 @@ class Instruction
                  @cpu.rdx = 0x49656e69
             when 1
                  @cpu.rax = 0xa0652
-                 @cpu.rbx = 0x4060800
+                 @cpu.rbx = 0x1060800
                  @cpu.rcx = 0x801a2201
                  @cpu.rdx = 0x178bfbff
             else
