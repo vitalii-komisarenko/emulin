@@ -24,6 +24,10 @@ class Register < Addressable
         
         super(pos, data)
     end
+
+    def assign(value)
+        write_int(0, 8, value)
+    end
 end
 
 class MMRegister < Addressable

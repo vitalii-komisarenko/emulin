@@ -831,7 +831,21 @@ class Instruction
             ah += @cpu.flags.s ? 128 : 0
             @cpu.register[0].write(1, [ah])
         when 'cpuid'
-            # Do nothing
+            eax = Pointer.new(@cpu.register[0], 0, 4).read_int
+            case eax
+            when 0
+                 @cpu.rax = 0x16
+                 @cpu.rbx = 0x756e6547
+                 @cpu.rcx = 0x6c65746e
+                 @cpu.rdx = 0x49656e69
+            when 1
+                 @cpu.rax = 0xa0652
+                 @cpu.rbx = 0x4060800
+                 @cpu.rcx = 0x801a2201
+                 @cpu.rdx = 0x178bfbff
+            else
+                raise "cpuid: eax value not supported: 0x%x" % eax
+            end
         when 'cmc' # Complement Carry Flag
             @cpu.flags.c = !@cpu.flags.c
         when 'clc' # Clear Carry Flag

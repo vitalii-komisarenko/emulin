@@ -60,6 +60,22 @@ class Cpu
         @flags.r = true
     end
 
+    def rax=(value)
+        @register[0].assign value
+    end
+
+    def rbx=(value)
+        @register[3].assign value
+    end
+
+    def rcx=(value)
+        @register[1].assign value
+    end
+
+    def rdx=(value)
+        @register[2].assign value
+    end
+
     # similar to `info registers` in GDB
     def to_s
         table = []
