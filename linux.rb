@@ -5,7 +5,7 @@ class Linux
     end
     
     def syscall_return_int(value)
-        Pointer.new(@cpu.register[0], 0, 8).write_int value
+        @cpu.rax = value
     end
 
     def handle_syscall(number, args)
