@@ -42,7 +42,7 @@ class Addressable
         for i in 0..(arr_of_bit_arr.length-1)
             item = arr_of_bit_arr[i]
             byte = item[0] + 2 * item[1] + 4 * item[2] + 8 * item[3] +
-                16 * item[4] + 32 * item[5] + 64 * item[6] + 127 * item[7]
+                16 * item[4] + 32 * item[5] + 64 * item[6] + 128 * item[7]
             byte_arr.push byte
         end
         write(pos, byte_arr)
