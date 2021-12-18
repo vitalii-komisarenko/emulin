@@ -2,6 +2,19 @@ require_relative "stream"
 require_relative "pointer"
 require_relative "const_buffer"
 
+class RIP_RelativePointer
+    def initialize(mem, cpu, offset, size)
+        @mem = mem
+        @cpu = cpu
+        @offset = offset
+        @size = size
+    end
+
+    def ptr
+        Pointer.new(@mem, @cpu.rip + @offset, @size)
+    end
+end
+
 class InstructionPrefix
     @@prefixes_to_ignore = [
         0xF0, # LOCK prefix
@@ -251,6 +264,9 @@ class Instruction
                 @size = multi_byte
                 modrm.operand_size = multi_byte
                 ptr = modrm.register_or_memory
+                if ptr.class.to_s == "RIP_RelativePointer"
+                    ptr = ptr.ptr
+                end
                 encode_value ptr.read_int
             else
                 raise "opcode extension not implemented for opcode 0xFF: %d" % modrm.opcode_ext
@@ -450,6 +466,8 @@ class Instruction
             end
         end
 
+        @args.map! { |arg| ((arg.class.to_s == "RIP_RelativePointer") ? arg.ptr : arg) }
+
         for arg in @args
             arg.read_size = @args[0].size
         end
@@ -624,6 +642,7 @@ class Instruction
         puts "opcode: %x" % @opcode
         puts "mnemonic: %s" % @func
         puts "condition: %s" % (@cond.nil? ? "none" : "%d" % @cond)
+
         for arg in @args
             puts "arg = %s pos=%x size=%d ==> %s" % [arg.mem.name, arg.pos, arg.size, arg.debug_value]
         end
@@ -1224,7 +1243,7 @@ class ModRM_Parser
                 return sib
             elsif ([0x5, 0xD].include? regmem) && (mode == 0)
                 rel = @stream.read_pointer(4).read_signed
-                return memory_at(@cpu.rip + rel)
+                return RIP_RelativePointer.new(@stream.mem, @cpu, rel, @operand_size)
             else
                 addr = @cpu.register[regmem].read_int(0, @address_size)
                 case mode
