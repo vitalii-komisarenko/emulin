@@ -834,18 +834,24 @@ class Instruction
             ah += @cpu.flags.s ? 128 : 0
             @cpu.register[0].write(1, [ah])
         when 'cpuid'
+            mapping = {
+                        0x0 => [       0x16, 0x756e6547, 0x6c65746e, 0x49656e69 ],
+                        0x1 => [    0xa0652,  0x1060800, 0x801a2201, 0x178bfbff ],
+                        0x7 => [        0x0,     0x2401,        0x0, 0x30000400 ],
+                        0xd => [        0x0,        0x0,        0x0,        0x0 ],
+                 0x80000000 => [ 0x80000008,        0x0,        0x0,        0x0 ],
+                 0x80000001 => [        0x0,        0x0,        0x1, 0x28100800 ],
+                 0x80000007 => [        0x0,        0x0,        0x0,      0x100 ],
+                 0x80000008 => [     0x3027,        0x0,        0x0,        0x0 ],
+            }
+
             eax = Pointer.new(@cpu.register[0], 0, 4).read_int
-            case eax
-            when 0
-                 @cpu.rax = 0x16
-                 @cpu.rbx = 0x756e6547
-                 @cpu.rcx = 0x6c65746e
-                 @cpu.rdx = 0x49656e69
-            when 1
-                 @cpu.rax = 0xa0652
-                 @cpu.rbx = 0x1060800
-                 @cpu.rcx = 0x801a2201
-                 @cpu.rdx = 0x178bfbff
+            if mapping.has_key? eax
+                value = mapping[eax]
+                @cpu.rax = value[0]
+                @cpu.rbx = value[1]
+                @cpu.rcx = value[2]
+                @cpu.rdx = value[3]
             else
                 raise "cpuid: eax value not supported: 0x%x" % eax
             end
