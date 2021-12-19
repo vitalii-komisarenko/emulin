@@ -76,6 +76,10 @@ class Cpu
         @register[2].assign value
     end
 
+    def r11=(value)
+        @register[11].assign value
+    end
+
     # similar to `info registers` in GDB
     def to_s
         table = []
