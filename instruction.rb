@@ -88,7 +88,6 @@ class InstructionPrefix
 end
 
 class Instruction
-    attr_reader :function, :arguments
     def initialize(stream, cpu, linux)
         @stream = stream
         @cpu = cpu
