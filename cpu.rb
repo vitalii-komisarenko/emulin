@@ -131,7 +131,7 @@ class Cpu
         for i in 0..15
             res += ("xmm%i" % i).ljust(15, ' ')
             for j in 0..15
-                res += "0x" + @xmm_register[j].read(j, 1).first.to_s(16)
+                res += "0x" + @xmm_register[i].read(j, 1).first.to_s(16)
                 res += ", " unless j == 15
             end
             res += "\n"
