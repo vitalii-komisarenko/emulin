@@ -783,6 +783,7 @@ class Instruction
             @args[0].write_int value
             @cpu.flags.c = (value < -(2**(8*@size-1)) || (value >= 2**(8*@size-1)))
             @cpu.flags.o = @cpu.flags.c
+            update_flags("...sz.p.", value, @args[0].size) # not defined, but seem to be calculated on my computer
         when 'bsf'
             @cpu.flags.z = @args[1].read_int == 0
             @args[0].write_int @args[1].read_bit_array.index(1) unless @cpu.flags.z
