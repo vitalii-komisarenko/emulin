@@ -724,7 +724,7 @@ class Instruction
             four_bits_2 = @args[1].read_int & 0xF
 
             cf = ((@func == 'adc') && @cpu.flags.c) ? 1 : 0
-            value = @args[0].read_int + @args[1].read_signed + cf
+            value = @args[0].read_int + @args[1].read_int + cf
             @args[0].write_int value
 
             @cpu.flags.c = value >= 2 ** (8 * @args[0].size) unless @func == "inc"
