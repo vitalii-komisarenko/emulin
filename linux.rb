@@ -8,6 +8,9 @@ class Linux
         @cpu.rax = value
     end
 
+    # Values of rcx and r11 are not preserved during syscall
+    # In this method they are assigned to hardcoded values
+    # in order to have output closer to GDB output.
     def handle_syscall(number, args)
         case number
         when 1 # write
@@ -22,7 +25,8 @@ class Linux
                 raise "not implemented fd: %d" % fd
             end
         when 12 # brk
-            syscall_return_int 0
+            @cpu.rcx = 0x54a2ab
+            syscall_return_int 0x5d8000
         when 60 # exit
             puts "exit code: %d" % args[0]
             @cpu.stopped = true
@@ -33,7 +37,10 @@ class Linux
             case code
             when 0x1002
                 @cpu.fs = args[1]
+                syscall_return_int 0
             when 0x3001
+                @cpu.rcx = 0x4a86ef
+                @cpu.r11 = 0x346
                 syscall_return_int -22 # EINVAL
             else
                 raise "Not implemented. Code = 0x%x" % code
