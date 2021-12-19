@@ -57,7 +57,6 @@ class Cpu
         instruction = Instruction.new(@mem_stream, self, @linux)
         instruction.execute
         @instructions_executed += 1
-        @flags.r = true
     end
 
     def rax=(value)

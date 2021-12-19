@@ -966,6 +966,8 @@ class Instruction
         else
             raise "function not implemented: " + @func
         end
+
+        @cpu.flags.r = @func != "syscall"
     end
     
     def for_each_xmm_item(func)
