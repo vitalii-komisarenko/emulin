@@ -2,6 +2,7 @@ class Linux
     def initialize(cpu, mem)
         @cpu = cpu
         @mem = mem
+        @brk = 0x5d8000
     end
     
     def syscall_return_int(value)
@@ -25,8 +26,11 @@ class Linux
                 raise "not implemented fd: %d" % fd
             end
         when 12 # brk
+            if args[0] > 0
+                @brk = args[0]
+            end
             @cpu.rcx = 0x54a2ab
-            syscall_return_int 0x5d8000
+            syscall_return_int @brk
         when 60 # exit
             puts "exit code: %d" % args[0]
             @cpu.stopped = true
