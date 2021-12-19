@@ -744,7 +744,7 @@ class Instruction
             four_bits_2 = @args[1].read_int & 0xF
 
             cf = ((@func == 'sbb') && @cpu.flags.c) ? 1 : 0
-            value = @args[0].read_int - @args[1].read_signed - cf
+            value = @args[0].read_int - @args[1].read_int - cf
             @args[@func == 'neg' ? 1 : 0].write_int(value) unless @func == 'cmp'
             update_flags("...sz.p.", value, @args[0].size)
 
