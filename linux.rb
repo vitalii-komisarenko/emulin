@@ -41,6 +41,8 @@ class Linux
             case code
             when 0x1002
                 @cpu.fs = args[1]
+                @cpu.rcx = 0x4a8fe7
+                @cpu.r11 = 0x302
                 syscall_return_int 0
             when 0x3001
                 @cpu.rcx = 0x4a86ef

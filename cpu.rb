@@ -123,8 +123,9 @@ class Cpu
         table << ["ss", "0x2b", "43"]
         table << ["ds", "0x0", "0"]
         table << ["es", "0x0", "0"]
-        table << ["fs", "0x" + @fs.to_s(16), @fs.to_s]
-        table << ["gs", "0x" + @gs.to_s(16), @gs.to_s]
+        table << ["fs", "0x0", "0"]
+        table << ["gs", "0x0", "0"]
+        table << ["fs_base", "0x" + @fs.to_s(16), @fs.to_s]
 
         res = "0x" + rip.to_s(16).rjust(16, '0') + "\n"
         for line in table
