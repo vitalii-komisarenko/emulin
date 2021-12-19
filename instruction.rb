@@ -444,6 +444,12 @@ class Instruction
             @size = 1
             @args.push modrm.register_or_memory
             encode_value(condition_is_met(@opcode % 16) ? 1 : 0)
+        when 0x0F3A0F
+            @func = "palignr"
+            @size = mm_or_xmm_operand_size
+            @args.push modrm.mm_or_xmm_register
+            @args.push modrm.mm_or_xmm_register_or_memory
+            decode_immediate 1
         else
             if @@mm_xmm_reg_regmem_opcodes.key? @opcode
                 # TODO: add support of VEX/EVEX
@@ -934,6 +940,13 @@ class Instruction
             @args[0].write_with_zero_extension([])
             arr = @args[1].read.map{|x| x[7]}
             @args[0].write_bit_array(arr)
+        when "palignr"
+            arr1 = @args[0].read
+            arr2 = @args[1].read
+            shift = @args[2].read.first % 256 # unsigned
+            raise "not implemented" if shift > @size / 2
+            res = arr2.slice(shift, shift + @size / 2) + arr1.slice(@size / 2 - shift, @size - shift)
+            @args[0].write res
         when "pshuf"
             order = @args[2].read_int
             data = @args[1].read + Array.new(@xmm_item_size * 3){|x| 0}
