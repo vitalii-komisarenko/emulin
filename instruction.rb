@@ -27,7 +27,8 @@ class InstructionPrefix
     ]
 
     attr_reader :operand_size_overridden, :address_size_overridden, :segment,
-                :repe, :repne, :rex_w, :reg_extension, :rex_x, :rex_b
+                :repe, :repne, :rex_w, :reg_extension, :rex_x, :rex_b,
+                :rex_prefix_present
     
     def initialize(stream)
         @operand_size_overridden = false
@@ -40,6 +41,7 @@ class InstructionPrefix
         @reg_extension = 0
         @rex_x = 0
         @rex_b = 0
+        @rex_prefix_present = false
     
         loop do
             prefix = stream.read
@@ -52,6 +54,7 @@ class InstructionPrefix
                 @reg_extension = 8 * prefix[2]
                 @rex_x = prefix[1]
                 @rex_b = prefix[0]
+                @rex_prefix_present = true
             when 0x64 # FS segment override
                 @segment = "FS"
             when 0x65 # GS segment override
@@ -1215,6 +1218,13 @@ class ModRM_Parser
     
     def register
         index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
+        return _register(index)
+    end
+
+    def _register(index)
+        if (@operand_size == 1) && !@prefix.rex_prefix_present && ([4, 5, 6, 7].include? index)
+            return Pointer.new(@cpu.register[index - 4], 1, 1)
+        end
         return Pointer.new(@cpu.register[index], 0, @operand_size)
     end
     
@@ -1237,7 +1247,7 @@ class ModRM_Parser
     def register_or_memory
         regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
         if mode == 0x03
-            return Pointer.new(@cpu.register[regmem], 0, @operand_size)        
+            return _register(regmem)
         else
             if [0x4, 0xC].include? regmem
                 return sib
