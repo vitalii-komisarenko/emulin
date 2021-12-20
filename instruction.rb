@@ -835,6 +835,7 @@ class Instruction
                 else
                     raise "function not implemented: " + @func
                 end
+                update_flags("...sz.p.", @args[0].read_int, @args[0].size)
             end
         when 'jmp'
             jump @args[0]
