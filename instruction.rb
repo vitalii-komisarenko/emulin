@@ -111,12 +111,12 @@ class Instruction
         when 0x00..0x3F
             raise "bad opcode: %02x" % @opcode if [6,7].include?(@opcode % 8)
             funcs = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
-            params = [[BYTE, R_M, REG],
-                      [LONG, R_M, REG],
-                      [BYTE, REG, R_M],
-                      [LONG, REG, R_M],
-                      [BYTE, ACC, IM1],
-                      [LONG, ACC, IMM]]
+            params = [[BYTE, nil, R_M, REG],
+                      [LONG, nil, R_M, REG],
+                      [BYTE, nil, REG, R_M],
+                      [LONG, nil, REG, R_M],
+                      [BYTE, nil, ACC, IM1],
+                      [LONG, nil, ACC, IMM]]
             decode_arguments([funcs[@opcode / 8]] + params[@opcode % 8])
         when 0x50..0x57
             @func = "push"
@@ -132,10 +132,6 @@ class Instruction
             @args.push modrm.register
             modrm.operand_size = [4, modrm.operand_size].min
             @args.push modrm.register_or_memory
-        when 0x68, 0x6A
-            @func = "push"
-            @size = @opcode == 0x68 ? multi_byte : 1
-            decode_immediate_16or32
         when 0x0FBE..0x0FBF
             @func = "movsx"
             @size = multi_byte
@@ -184,21 +180,6 @@ class Instruction
             @size = multi_byte
             decode_register_from_opcode
             decode_immediate
-        when 0xC3
-            @func = "retn"
-            encode_value 0
-        when 0xC6
-            @func = "mov"
-            @size = 1
-            unspecified_opcode_extension unless modrm.opcode_ext == 0
-            @args.push modrm.register_or_memory
-            decode_immediate
-        when 0xC7
-            @func = "mov"
-            @size = multi_byte
-            unspecified_opcode_extension unless modrm.opcode_ext == 0
-            @args.push modrm.register_or_memory
-            decode_immediate_16or32
         when 0xE0..0xE2
             @func = ["loopnz", "loopz", "loop"][@opcode - 0xE0]
             encode_counter
@@ -218,40 +199,6 @@ class Instruction
         when 0xEB
             @func = "jmp"
             decode_relative_address 1
-        when 0xFE
-            @size = 1
-            unspecified_opcode_extension unless [0, 1].include? modrm.opcode_ext
-            @func = modrm.opcode_ext == 0 ? "inc" : "dec"
-            @args.push modrm.register_or_memory
-            encode_value 1
-        when 0xF6
-            case modrm.opcode_ext
-            when 0, 1
-                @func = "test"
-                @size = 1
-                modrm.operand_size = 1
-                @args.push modrm.register_or_memory
-                decode_immediate_16or32
-            else
-                raise "opcode extension not implemented for opcode 0xF6: %d" % modrm.opcode_ext
-            end
-        when 0xF7
-            @size = multi_byte
-            case modrm.opcode_ext
-            when 0, 1
-                @func = "test"
-                @args.push modrm.register_or_memory
-                decode_immediate_16or32
-            when 3
-                @func = "neg"
-                encode_value 0
-                @args.push modrm.register_or_memory
-            when 6
-                @func = "div"
-                @args.push modrm.register_or_memory
-            else
-                raise "opcode extension not implemented for opcode 0xF7: %d" % modrm.opcode_ext
-            end
         when 0xFF
             case modrm.opcode_ext
             when 0, 1
@@ -457,6 +404,12 @@ class Instruction
                 @size = mm_or_xmm_operand_size
                 @args.push modrm.mm_or_xmm_register
                 @args.push modrm.mm_or_xmm_register_or_memory
+            elsif @@opcodes_with_extensions.key? @opcode
+                hash = @@opcodes_with_extensions[@opcode]
+                ext  = modrm.opcode_ext
+                unspecified_opcode_extension unless hash.include? ext
+                arr  = hash[ext]
+                decode_arguments arr
             elsif @@unified_opcode_table.key? @opcode
                 arr = @@unified_opcode_table[@opcode]
                 decode_arguments arr
@@ -482,13 +435,19 @@ class Instruction
             @size = multi_byte
         end
 
+        @xmm_item_size = arr[2]
+
         @func = arr[0]
         case @func
         when "#ROTATE/SHIFT"
             @func = ["rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"][modrm.opcode_ext]
         end
 
-        args = arr[2..-1].nil? ? [] : arr[2..-1]
+        unless @modrm.nil?
+            @modrm.operand_size = @size
+        end
+
+        args = arr[3..-1]
         for arg in args
             case arg
             when REG
@@ -501,6 +460,8 @@ class Instruction
                 decode_immediate 1
             when IMM
                 decode_immediate_16or32
+            when ZERO
+                encode_value 0
             when ONE
                 encode_value 1
             when C_F
@@ -1146,55 +1107,83 @@ class Instruction
     IMM = "imm"  # immediate value not longer than 4 bytes
     IM1 = "imm1" # 1-byte immediate value
     ACC = "acc"  # accumulator
+    ZERO= "0"    # constant value of 0
     ONE = "_1_"  # constant value of 1
     C_F = "c_f"  # carry flag
 
+    @@opcodes_with_extensions = {
+        # format: opcode => {extension => [mnemonic, size, xmm item size, args]
+        0xC6 => { 0 => ["mov",  BYTE, nil, R_M, IM1]},
+        0xC7 => { 0 => ["mov",  LONG, nil, R_M, IMM]},
+        0xF6 => { 0 => ["test", BYTE, nil, R_M, IM1],
+                  1 => ["test", BYTE, nil, R_M, IM1],
+                  2 => ["not implemented"],
+                  3 => ["not implemented"],
+                  4 => ["not implemented"],
+                  5 => ["not implemented"],
+                  6 => ["not implemented"],
+                  7 => ["not implemented"]},
+        0xF7 => { 0 => ["test", LONG, nil, R_M, IMM],
+                  1 => ["test", LONG, nil, R_M, IMM],
+                  2 => ["not implemented"],
+                  3 => ["neg", LONG, nil, ZERO, R_M],
+                  4 => ["not implemented"],
+                  5 => ["not implemented"],
+                  6 => ["div", LONG, nil, R_M],
+                  7 => ["not implemented"]},
+        0xFE => { 0 => ["inc", BYTE, nil, R_M, ONE],
+                  1 => ["dec", BYTE, nil, R_M, ONE]},
+    }
+
     @@unified_opcode_table = {
-        0x69 => ["imul", LONG, REG, R_M, IMM],
-        0x6B => ["imul", LONG, REG, R_M, IM1],
-        0x84 => ['test', BYTE, R_M, REG],
-        0x85 => ['test', LONG, R_M, REG],
-        0x86 => ['xchg', BYTE, REG, R_M],
-        0x87 => ['xchg', LONG, REG, R_M],
-        0x88 => ['mov',  BYTE, R_M, REG],
-        0x89 => ['mov',  LONG, R_M, REG],
-        0x8A => ['mov',  BYTE, REG, R_M],
-        0x8B => ['mov',  LONG, REG, R_M],
-        0x8D => ['lea',  LONG, REG, R_M],
-        0x9E => ["sahf"],
-        0x9F => ["lahf"],
-        0xA4 => ["movs", BYTE],
-        0xA5 => ["movs", LONG],
-        0xA6 => ["cmps", BYTE],
-        0xA7 => ["cmps", LONG],
-        0xA8 => ["test", BYTE, ACC, IM1],
-        0xA9 => ["test", LONG, ACC, IMM],
-        0xAA => ["stos", BYTE],
-        0xAB => ["stos", LONG],
-        0xAC => ["lods", BYTE],
-        0xAD => ["lods", LONG],
-        0xAE => ["scas", BYTE],
-        0xAF => ["scas", LONG],
-        0xC0 => ["#ROTATE/SHIFT", BYTE, R_M, IM1],
-        0xC1 => ["#ROTATE/SHIFT", LONG, R_M, IM1],
-        0xD0 => ["#ROTATE/SHIFT", BYTE, R_M, ONE],
-        0xD1 => ["#ROTATE/SHIFT", LONG, R_M, ONE],
-        0xD2 => ["#ROTATE/SHIFT", BYTE, R_M, C_F],
-        0xD3 => ["#ROTATE/SHIFT", LONG, R_M, C_F],
-        0xF5 => ['cmc'],
-        0xF8 => ['clc'],
-        0xF9 => ['stc'],
-        0xFA => ['cli'],
-        0xFB => ['sti'],
-        0xFC => ['cld'],
-        0xFD => ['std'],
-        0x0F05 => ["syscall"],
-        0x0FA2 => ['cpuid'],
-        0x0FAF => ['imul', LONG, REG, R_M],
-        0x0FBC => ['bsf',  LONG, REG, R_M],
-        0x0FBD => ['bsr',  LONG, REG, R_M],
-        0x0FC0 => ['xadd', BYTE, R_M, REG],
-        0x0FC1 => ['xadd', LONG, R_M, REG],
+        0x68 => ["push", LONG, nil, IMM],
+        0x69 => ["imul", LONG, nil, REG, R_M, IMM],
+        0x6A => ["push", BYTE, nil, IM1],
+        0x6B => ["imul", LONG, nil, REG, R_M, IM1],
+        0x84 => ['test', BYTE, nil, R_M, REG],
+        0x85 => ['test', LONG, nil, R_M, REG],
+        0x86 => ['xchg', BYTE, nil, REG, R_M],
+        0x87 => ['xchg', LONG, nil, REG, R_M],
+        0x88 => ['mov',  BYTE, nil, R_M, REG],
+        0x89 => ['mov',  LONG, nil, R_M, REG],
+        0x8A => ['mov',  BYTE, nil, REG, R_M],
+        0x8B => ['mov',  LONG, nil, REG, R_M],
+        0x8D => ['lea',  LONG, nil, REG, R_M],
+        0x9E => ["sahf", nil,  nil],
+        0x9F => ["lahf", nil,  nil],
+        0xA4 => ["movs", BYTE, nil],
+        0xA5 => ["movs", LONG, nil],
+        0xA6 => ["cmps", BYTE, nil],
+        0xA7 => ["cmps", LONG, nil],
+        0xA8 => ["test", BYTE, nil, ACC, IM1],
+        0xA9 => ["test", LONG, nil, ACC, IMM],
+        0xAA => ["stos", BYTE, nil],
+        0xAB => ["stos", LONG, nil],
+        0xAC => ["lods", BYTE, nil],
+        0xAD => ["lods", LONG, nil],
+        0xAE => ["scas", BYTE, nil],
+        0xAF => ["scas", LONG, nil],
+        0xC0 => ["#ROTATE/SHIFT", BYTE, nil, R_M, IM1],
+        0xC1 => ["#ROTATE/SHIFT", LONG, nil, R_M, IM1],
+        0xC3 => ["retn", nil, nil, ZERO],
+        0xD0 => ["#ROTATE/SHIFT", BYTE, nil, R_M, ONE],
+        0xD1 => ["#ROTATE/SHIFT", LONG, nil, R_M, ONE],
+        0xD2 => ["#ROTATE/SHIFT", BYTE, nil, R_M, C_F],
+        0xD3 => ["#ROTATE/SHIFT", LONG, nil, R_M, C_F],
+        0xF5 => ['cmc', nil, nil],
+        0xF8 => ['clc', nil, nil],
+        0xF9 => ['stc', nil, nil],
+        0xFA => ['cli', nil, nil],
+        0xFB => ['sti', nil, nil],
+        0xFC => ['cld', nil, nil],
+        0xFD => ['std', nil, nil],
+        0x0F05 => ["syscall", nil, nil],
+        0x0FA2 => ['cpuid', nil, nil],
+        0x0FAF => ['imul', LONG, nil, REG, R_M],
+        0x0FBC => ['bsf',  LONG, nil, REG, R_M],
+        0x0FBD => ['bsr',  LONG, nil, REG, R_M],
+        0x0FC0 => ['xadd', BYTE, nil, R_M, REG],
+        0x0FC1 => ['xadd', LONG, nil, R_M, REG],
     }
 end
 
