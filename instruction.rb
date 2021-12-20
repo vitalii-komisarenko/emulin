@@ -451,16 +451,7 @@ class Instruction
             decode_immediate 1
         else
             if @@mm_xmm_reg_regmem_opcodes.key? @opcode
-                # TODO: add support of VEX/EVEX
                 arr = @@mm_xmm_reg_regmem_opcodes[@opcode]
-                @func = arr[0]
-                @xmm_item_size = arr[1]
-                @size = mm_or_xmm_operand_size
-                @args.push modrm.mm_or_xmm_register
-                @args.push modrm.mm_or_xmm_register_or_memory
-            elsif @@mm_xmm_reg_regmem_opcodes_signed.key? @opcode
-                # TODO: add support of VEX/EVEX
-                arr = @@mm_xmm_reg_regmem_opcodes_signed[@opcode]
                 @func = arr[0]
                 @xmm_item_size = arr[1]
                 @size = mm_or_xmm_operand_size
@@ -1114,6 +1105,9 @@ class Instruction
         0x0F60 => ['punpckl', 1],
         0x0F61 => ['punpckl', 2],
         0x0F62 => ['punpckl', 4],
+        0x0F64 => ['pcmpgt', 1],
+        0x0F65 => ['pcmpgt', 2],
+        0x0F66 => ['pcmpgt', 4],
         0x0F68 => ['punpckh', 1],
         0x0F69 => ['punpckh', 2],
         0x0F6A => ['punpckh', 4],
@@ -1140,13 +1134,6 @@ class Instruction
         0x0FFC => ['padd', 1],
         0x0FFD => ['padd', 2],
         0x0FFE => ['padd', 4],
-    }
-
-    @@mm_xmm_reg_regmem_opcodes_signed = {
-        # format: opcode => [operation, item size]
-        0x0F64 => ['pcmpgt', 1],
-        0x0F65 => ['pcmpgt', 2],
-        0x0F66 => ['pcmpgt', 4],
     }
 
     # operation size
