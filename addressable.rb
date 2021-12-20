@@ -29,6 +29,12 @@ class Addressable
         end
     end
 
+    def write_unterminated_string(pos, str)
+        arr = str.bytes
+        write(pos, arr)
+        return pos + arr.length
+    end
+
     def write_null_terminated_string(pos, str)
         arr = str.bytes + [0]
         write(pos, arr)

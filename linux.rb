@@ -5,7 +5,7 @@ class Linux
         @brk = 0x5d8000
     end
     
-    def syscall_return_int(value)
+    def syscall_return(value)
         @cpu.rax = value
     end
 
@@ -21,7 +21,7 @@ class Linux
             if fd == 1 # stdout
                 data = @mem.read(pos, size)
                 print data.pack("C*")
-                syscall_return_int size
+                syscall_return size
             else
                 raise "not implemented fd: %d" % fd
             end
@@ -30,12 +30,26 @@ class Linux
                 @brk = args[0]
             end
             @cpu.rcx = 0x54a2ab
-            syscall_return_int @brk
+            syscall_return @brk
         when 60 # exit
             puts "exit code: %d" % args[0]
             @cpu.stopped = true
+        when 63 # uname
+            addr = args[0]
+            len = 65
+
+            @mem.write(addr, [0] * (len * 5))
+
+            @mem.write_unterminated_string(addr,           "Linux")
+            @mem.write_unterminated_string(addr + len,     "vk-VirtualBox")
+            @mem.write_unterminated_string(addr + len * 2, "5.1.0-43-generic")
+            @mem.write_unterminated_string(addr + len * 3, "#47~20.04.2-Ubuntu SMP Mon Dec 13 11:06:56 UTC 2021")
+            @mem.write_unterminated_string(addr + len * 4, "x86_64")
+
+            @cpu.rcx = 0x54a05b
+            syscall_return 0
         when 102, 104, 107, 108 # getuid, getgid, geteuid, getegid
-            syscall_return_int 1000 # default UID of the first user on Ubuntu
+            syscall_return 1000 # default UID of the first user on Ubuntu
         when 158
             code = args[0]
             case code
@@ -43,11 +57,11 @@ class Linux
                 @cpu.fs = args[1]
                 @cpu.rcx = 0x4a8fe7
                 @cpu.r11 = 0x302
-                syscall_return_int 0
+                syscall_return 0
             when 0x3001
                 @cpu.rcx = 0x4a86ef
                 @cpu.r11 = 0x346
-                syscall_return_int -22 # EINVAL
+                syscall_return -22 # EINVAL
             else
                 raise "Not implemented. Code = 0x%x" % code
             end
