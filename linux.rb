@@ -9,6 +9,9 @@ class Linux
         @cpu.rax = value
     end
 
+    ENOENT = 2
+    EINVAL = 22
+
     # Values of rcx and r11 are not preserved during syscall
     # In this method they are assigned to hardcoded values
     # in order to have output closer to GDB output.
@@ -48,6 +51,29 @@ class Linux
 
             @cpu.rcx = 0x54a05b
             syscall_return 0
+        when 89
+             pathname, buf, bufsiz = args
+             if bufsiz <= 0
+                 syscall_return -EINVAL
+                 return
+             end
+             link_bytes = Pointer.new(@mem, args[0], 1000).read
+             link = link_bytes.map{|ch| ch.chr }.join.unpack('Z*').first
+             begin
+                 if link == "/proc/self/exe"
+                     target = @cpu.file
+                 else
+                     target = File.readlink(link)
+                 end
+                 ret = target.length
+                 target += "\0"
+                 target = target[0, args[2]]
+                 @mem.write_unterminated_string(args[1], target)
+                 @cpu.rcx = 0x554993
+                 syscall_return ret
+             rescue
+                 syscall_return -ENOENT
+             end
         when 102, 104, 107, 108 # getuid, getgid, geteuid, getegid
             syscall_return 1000 # default UID of the first user on Ubuntu
         when 158
@@ -61,7 +87,7 @@ class Linux
             when 0x3001
                 @cpu.rcx = 0x4a86ef
                 @cpu.r11 = 0x346
-                syscall_return -22 # EINVAL
+                syscall_return -EINVAL
             else
                 raise "Not implemented. Code = 0x%x" % code
             end

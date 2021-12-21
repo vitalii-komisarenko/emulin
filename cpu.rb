@@ -6,7 +6,7 @@ require_relative "stack"
 class Cpu
     attr_reader :register, :mm_register, :xmm_register, :instructions_executed
     attr_writer :linux
-    attr_accessor :stopped, :flags, :stack, :fs, :gs
+    attr_accessor :stopped, :flags, :stack, :fs, :gs, :file
     
     def initialize(mem, entry_point, stack_bottom)
         @register = []

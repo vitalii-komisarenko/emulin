@@ -94,8 +94,9 @@ stack_bottom = 0x7fffffffef10
 values_addr  = 0x7fffffffedd8
 
 
+file = Dir.pwd + "/progs_to_test/bin/hello_cpp"
 
-elf = Elf.new("progs_to_test/bin/hello_cpp")
+elf = Elf.new(file)
 
 raise "64-bit ELF required" unless elf.elf_header.is_64_bit
 
@@ -158,6 +159,7 @@ cpu = Cpu.new(mem, elf.elf_header.e_entry, stack_bottom)
 linux = Linux.new(cpu, mem)
 
 cpu.linux = linux
+cpu.file  = file
 
 while !cpu.stopped
     puts "====="
