@@ -170,6 +170,11 @@ class Instruction
             @size = multi_byte
             encode_accumulator
             decode_register_from_opcode
+        when 0x98
+            @size = multi_byte
+            @args.push Pointer.new(@cpu.register[0], 0, @size)
+            @args.push Pointer.new(@cpu.register[0], 0, @size / 2)
+            @func = @size == 2 ? "cbw" : @size == 4 ? "cwde" : "cdqe"
         when 0xb0..0xb7
             @func = "mov"
             @size = 1
@@ -619,7 +624,7 @@ class Instruction
             @args[0].write @args[1].read
         when "movq" # used in moving data from the lowest bits of XMM to XMM/memory
             @args[0].write_with_zero_extension @args[1].read
-        when "movsxd", "movsx"
+        when "movsxd", "movsx", "cbw", "cwde", "cdqe"
             @args[0].write_int @args[1].read_signed
         when "movzx"
             @args[0].write_int @args[1].read_int
