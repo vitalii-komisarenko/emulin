@@ -572,7 +572,7 @@ class Instruction
         when 5
             return !@cpu.flags.z
         when 6
-            return @cpu.flags.c && @cpu.flags.z
+            return @cpu.flags.c || @cpu.flags.z
         when 7
             return !@cpu.flags.c && !@cpu.flags.z
         when 8
