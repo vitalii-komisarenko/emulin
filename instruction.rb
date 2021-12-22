@@ -461,6 +461,8 @@ class Instruction
                 @args.push modrm.register_or_memory
             when ACC
                 encode_accumulator
+            when CL
+                @args.push Pointer.new(@cpu.register[1], 0, 1)
             when IM1
                 decode_immediate 1
             when IMM
@@ -1129,6 +1131,7 @@ class Instruction
     ZERO= "0"    # constant value of 0
     ONE = "_1_"  # constant value of 1
     C_F = "c_f"  # carry flag
+    CL  = "CL"   # the lowest byte of the counter
 
     @@opcodes_with_extensions = {
         # format: opcode => {extension => [mnemonic, size, xmm item size, args]
@@ -1187,8 +1190,8 @@ class Instruction
           0xC3 => ["retn",    nil,  nil, ZERO],
           0xD0 => ["#SHIFT",  BYTE, nil, R_M, ONE],
           0xD1 => ["#SHIFT",  LONG, nil, R_M, ONE],
-          0xD2 => ["#SHIFT",  BYTE, nil, R_M, C_F],
-          0xD3 => ["#SHIFT",  LONG, nil, R_M, C_F],
+          0xD2 => ["#SHIFT",  BYTE, nil, R_M, CL],
+          0xD3 => ["#SHIFT",  LONG, nil, R_M, CL],
           0xF5 => ['cmc',     nil,  nil],
           0xF8 => ['clc',     nil,  nil],
           0xF9 => ['stc',     nil,  nil],
@@ -1198,6 +1201,12 @@ class Instruction
           0xFD => ['std',     nil,  nil],
         0x0F05 => ["syscall", nil,  nil],
         0x0FA2 => ['cpuid',   nil,  nil],
+        0x0FA3 => ['bt',      LONG, nil, R_M, REG],
+        0x0FA4 => ['shld',    LONG, nil, R_M, REG, IM1],
+        0x0FA5 => ['shld',    LONG, nil, R_M, REG, CL],
+        0x0FAB => ['bts',     LONG, nil, R_M, REG],
+        0x0FAC => ['shrd',    LONG, nil, R_M, REG, IM1],
+        0x0FAD => ['shrd',    LONG, nil, R_M, REG, CL],
         0x0FAF => ['imul',    LONG, nil, REG, R_M],
         0x0FB0 => ['cmpxchg', BYTE, nil, R_M, ACC, REG],
         0x0FB1 => ['cmpxchg', LONG, nil, R_M, ACC, REG],
