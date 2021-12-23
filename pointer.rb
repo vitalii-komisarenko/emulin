@@ -83,7 +83,7 @@ class Pointer
             return "S<"
         when 4
             return "L<"
-        when 8
+        when 8, 16 # workaround. 16 should not be here
             return "Q<"
         else
             raise "bad size: %d" % size
@@ -98,7 +98,7 @@ class Pointer
             return "s<"
         when 4
             return "l<"
-        when 8
+        when 8, 16 # workaround. 16 should not be here
             return "q<"
         else
             raise "bad size: %d" % size
@@ -114,12 +114,12 @@ class Pointer
     end
 
     def pointer_to_upper_half
-        raise "size is not even" unless @size % 2 == 0
+        raise "size %d is not even" % @size unless @size % 2 == 0
         return Pointer.new(@mem, @pos + @size / 2, @size / 2)
     end
 
     def pointer_to_lower_half
-        raise "size is not even" unless @size % 2 == 0
+        raise "size %d is not even" % @size unless @size % 2 == 0
         return Pointer.new(@mem, @pos, @size / 2)
     end
 end

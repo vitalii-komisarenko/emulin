@@ -33,6 +33,12 @@ class Linux
                 @brk = args[0]
             end
             @cpu.rcx = 0x54a2ab
+            case args[0]
+            when 0x5fa200
+                @cpu.r11 = 0x346
+            when 0x5fb000
+                @cpu.r11 = 0x346
+            end
             syscall_return @brk
         when 60 # exit
             puts "exit code: %d" % args[0]

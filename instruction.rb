@@ -821,6 +821,7 @@ class Instruction
                     raise "function not implemented: " + @func
                 end
                 update_flags("...sz.p.", @args[0].read_int, @args[0].size)
+                @cpu.flags.a = false # Not defined
             end
         when 'jmp'
             jump @args[0]
