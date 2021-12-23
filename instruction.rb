@@ -748,6 +748,18 @@ class Instruction
             end
             rax.write_int quotient
             rdx.write_int remainder
+        when 'mul'
+            value = @args[0].read_unsigned * Pointer.new(@cpu.register[0], 0, @size).read_unsigned
+            upper_half = value >> (8 * @size)
+            @cpu.flags.o = upper_half != 0
+            @cpu.flags.c = upper_half != 0
+            if @size == 1
+                Pointer.new(@cpu.register[0], 0, 2).write_int(value)
+            else
+                lower_half = value % (256 ** @size)
+                Pointer.new(@cpu.register[0], 0, @size).write_int(lower_half)
+                Pointer.new(@cpu.register[2], 0, @size).write_int(upper_half)
+            end
         when 'imul'
             case @args.length
             when 1
@@ -1141,7 +1153,7 @@ class Instruction
                   1 => ["test", BYTE, nil, R_M, IM1],
                   2 => ["not implemented"],
                   3 => ["not implemented"],
-                  4 => ["not implemented"],
+                  4 => ["mul",  BYTE, nil, R_M],
                   5 => ["not implemented"],
                   6 => ["not implemented"],
                   7 => ["not implemented"]},
@@ -1149,7 +1161,7 @@ class Instruction
                   1 => ["test", LONG, nil, R_M, IMM],
                   2 => ["not implemented"],
                   3 => ["neg", LONG, nil, ZERO, R_M],
-                  4 => ["not implemented"],
+                  4 => ["mul", LONG, nil, R_M],
                   5 => ["not implemented"],
                   6 => ["div", LONG, nil, R_M],
                   7 => ["not implemented"]},

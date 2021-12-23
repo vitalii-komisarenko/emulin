@@ -20,7 +20,11 @@ class Pointer
         padding = data[data.length-1][7] == 1 ? 0xFF : 0
         return data + Array.new(@read_size - data.length, padding)
     end
-    
+
+    def read_unsigned
+        read.pack("C*").unpack(pack_scheme(read_size))[0]
+    end
+
     def read_int
         read.pack("C*").unpack(pack_scheme(read_size))[0]
     end
