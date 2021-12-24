@@ -270,7 +270,6 @@ class Instruction
             @args.push modrm.register
             @args.push modrm.register_or_memory
         when 0x0F6C, 0x0F6D
-            # TODO: add support of VEX/EVEX
             @func = @opcode == 0x0F6C ? "punpckl" : "punpckh"
             raise "missing operand-size override prefix" unless @prefix.operand_size_overridden
             @size = 16
@@ -285,7 +284,6 @@ class Instruction
             modrm.operand_size = @size
             @args.push modrm.register_or_memory
         when 0x0F6F
-            # TODO: add support of VEX/EVEX
             @func = "mov"
             @size = mm_or_xmm_operand_size
             if @prefix.repe
@@ -295,8 +293,6 @@ class Instruction
             @args.push modrm.mm_or_xmm_register
             @args.push modrm.mm_or_xmm_register_or_memory
         when 0x0F70
-            # TODO: add support of VEX/EVEX
-            # Note that VEX/EVEX versions clear some high bits
             case @prefix.simd_prefix
             when nil
                 @func = "pshuf"
@@ -348,7 +344,6 @@ class Instruction
                 unspecified_opcode_extension
             end
         when 0x0F7E
-            # TODO: add support of VEX/EVEX
             @func = "movq"
             raise "not implemented" unless @prefix.repe
             @size = 16 # It is a workaround. ModR/M uses size to distinguish
@@ -367,7 +362,6 @@ class Instruction
             @args.push modrm.mm_or_xmm_register_or_memory
             @args.push modrm.mm_or_xmm_register
         when 0x0FD6
-            # TODO: add support of VEX/EVEX
             raise "not implemented" unless @prefix.operand_size_overridden
             @func = "movq"
             @size = 8
@@ -480,7 +474,6 @@ class Instruction
     end
 
     def mm_or_xmm_operand_size
-        # TODO: add support of VEX/EVEX
         return @prefix.operand_size_overridden ? 16 : 8
     end
 
@@ -625,7 +618,11 @@ class Instruction
         when "mov", "set", "movap"
             @args[0].write @args[1].read
         when "movq" # used in moving data from the lowest bits of XMM to XMM/memory
-            @args[0].write_with_zero_extension @args[1].read
+            dest, src = @args
+            if (src.type == "mem") && (dest.type == "xmm")
+                dest.size = 16
+            end
+            dest.write_with_zero_extension src.read
         when "movsxd", "movsx", "cbw", "cwde", "cdqe"
             @args[0].write_int @args[1].read_signed
         when "movzx"
@@ -1264,7 +1261,6 @@ class ModRM_Parser
     end
     
     def mm_or_xmm_register
-        # TODO: add support of VEX/EVEX
         index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
         if @operand_size == 8
             return Pointer.new(@cpu.mm_register[index], 0, @operand_size)
@@ -1274,7 +1270,6 @@ class ModRM_Parser
     end
     
     def xmm_register
-        # TODO: add support of VEX/EVEX
         index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
         return Pointer.new(@cpu.xmm_register[index], 0, @operand_size)
     end
@@ -1303,7 +1298,6 @@ class ModRM_Parser
     end
 
     def mm_or_xmm_register_or_memory
-        # TODO: add support of VEX/EVEX
         regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
         if mode == 0x03
             if @operand_size == 8
@@ -1319,7 +1313,6 @@ class ModRM_Parser
     end
 
     def xmm_register_or_memory
-        # TODO: add support of VEX/EVEX
         regmem = (@modrm & 0x07) + 8 * @prefix.rex_b
         if mode == 0x03
             return Pointer.new(@cpu.xmm_register[regmem], 0, @operand_size)

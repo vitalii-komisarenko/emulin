@@ -28,10 +28,20 @@ class Register < Addressable
     def assign(value)
         write_int(0, 8, value)
     end
+
+    def type
+        "reg"
+    end
 end
 
 class MMRegister < Addressable
+    def type
+        "mm"
+    end
 end
 
 class XMMRegister < Addressable
+    def type
+        "xmm"
+    end
 end

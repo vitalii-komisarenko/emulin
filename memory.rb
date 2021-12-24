@@ -5,4 +5,8 @@ class Memory < Addressable
         super
         @name = "memory"
     end
+
+    def type
+        "mem"
+    end
 end

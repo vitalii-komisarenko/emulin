@@ -122,6 +122,10 @@ class Pointer
         raise "size %d is not even" % @size unless @size % 2 == 0
         return Pointer.new(@mem, @pos, @size / 2)
     end
+
+    def type
+        @mem.type
+    end
 end
 
 class PointerSigned < Pointer
