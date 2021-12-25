@@ -227,6 +227,11 @@ class Instruction
                     ptr = ptr.ptr
                 end
                 encode_value ptr.read_int
+            when 6
+                @func = "push"
+                @size = @prefix.operand_size_overridden ? 2 : 8
+                modrm.operand_size = @size
+                @args.push modrm.register_or_memory
             else
                 raise "opcode extension not implemented for opcode 0xFF: %d" % modrm.opcode_ext
             end
