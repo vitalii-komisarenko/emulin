@@ -132,6 +132,11 @@ class Instruction
             @args.push modrm.register
             modrm.operand_size = [4, modrm.operand_size].min
             @args.push modrm.register_or_memory
+        when 0x6A
+            @func = "push"
+            decode_immediate 1
+            @args[0].read_size = 8
+            return
         when 0x0FBE..0x0FBF
             @func = "movsx"
             @size = multi_byte
@@ -1167,7 +1172,6 @@ class Instruction
     @@unified_opcode_table = {
           0x68 => ["push",    LONG, nil, IMM],
           0x69 => ["imul",    LONG, nil, REG, R_M, IMM],
-          0x6A => ["push",    BYTE, nil, IM1],
           0x6B => ["imul",    LONG, nil, REG, R_M, IM1],
           0x84 => ['test',    BYTE, nil, R_M, REG],
           0x85 => ['test',    LONG, nil, R_M, REG],

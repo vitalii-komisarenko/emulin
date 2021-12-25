@@ -14,7 +14,7 @@ class Pointer
             return []
         end
         data = @mem.read(@pos, @size)
-        if data.length >= read_size
+        if data.length >= @read_size
             return data
         end
         padding = data[data.length-1][7] == 1 ? 0xFF : 0
