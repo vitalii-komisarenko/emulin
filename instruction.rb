@@ -465,8 +465,6 @@ class Instruction
                 encode_value 0
             when ONE
                 encode_value 1
-            when C_F
-                encode_value(@cpu.flags.c ? 1 : 0)
             else
                 raise "unknown argument: %s"
             end
@@ -1140,7 +1138,6 @@ class Instruction
     ACC = "acc"  # accumulator
     ZERO= "0"    # constant value of 0
     ONE = "_1_"  # constant value of 1
-    C_F = "c_f"  # carry flag
     CL  = "CL"   # the lowest byte of the counter
 
     @@opcodes_with_extensions = {
