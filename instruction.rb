@@ -132,6 +132,18 @@ class Instruction
             @args.push modrm.register
             modrm.operand_size = [4, modrm.operand_size].min
             @args.push modrm.register_or_memory
+        when 0xC6
+            @size = 1
+            unspecified_opcode_extension unless modrm.opcode_ext == 0
+            @func = "mov"
+            @args.push modrm.register_or_memory
+            decode_immediate
+        when 0xC7
+            @size = multi_byte
+            unspecified_opcode_extension unless modrm.opcode_ext == 0
+            @func = "mov"
+            @args.push modrm.register_or_memory
+            decode_immediate_16or32
         when 0x6A
             @func = "push"
             decode_immediate 1
@@ -192,6 +204,51 @@ class Instruction
         when 0xEB
             @func = "jmp"
             decode_relative_address 1
+        when 0xF6
+            @size = 1
+            case modrm.opcode_ext
+            when 0, 1
+                @func = "test"
+                @args.push modrm.register_or_memory
+                decode_immediate
+            when 4
+                @func = "mul"
+                @args.push modrm.register_or_memory
+            else
+                raise "not implemented. opcode = %x, extension = %d" % [@opcode, modrm.opcode_ext]
+            end
+        when 0xF7
+            @size = multi_byte
+            case modrm.opcode_ext
+            when 0, 1
+                @func = "test"
+                @args.push modrm.register_or_memory
+                decode_immediate
+            when 3
+                @func = "neg"
+                encode_value 0
+                @args.push modrm.register_or_memory
+            when 4
+                @func = "mul"
+                @args.push modrm.register_or_memory
+            when 6
+                @func = "div"
+                @args.push modrm.register_or_memory
+            else
+                raise "not implemented. opcode = %x, extension = %d" % [@opcode, modrm.opcode_ext]
+            end
+        when 0xFE
+            @size = 1
+            case modrm.opcode_ext
+            when 0
+                @func = "inc"
+            when 1
+                @func = "dec"
+            else
+                unspecified_opcode_extension
+            end
+            @args.push modrm.register_or_memory
+            encode_value 1
         when 0xFF
             case modrm.opcode_ext
             when 0, 1
@@ -413,12 +470,6 @@ class Instruction
                 @size = mm_or_xmm_operand_size
                 @args.push modrm.mm_or_xmm_register
                 @args.push modrm.mm_or_xmm_register_or_memory
-            elsif @@opcodes_with_extensions.key? @opcode
-                hash = @@opcodes_with_extensions[@opcode]
-                ext  = modrm.opcode_ext
-                unspecified_opcode_extension unless hash.include? ext
-                arr  = hash[ext]
-                decode_arguments arr
             elsif @@unified_opcode_table.key? @opcode
                 arr = @@unified_opcode_table[@opcode]
                 decode_arguments arr
@@ -1149,30 +1200,6 @@ class Instruction
     ZERO= "0"    # constant value of 0
     ONE = "_1_"  # constant value of 1
     CL  = "CL"   # the lowest byte of the counter
-
-    @@opcodes_with_extensions = {
-        # format: opcode => {extension => [mnemonic, size, xmm item size, args]
-        0xC6 => { 0 => ["mov",  BYTE, nil, R_M, IM1]},
-        0xC7 => { 0 => ["mov",  LONG, nil, R_M, IMM]},
-        0xF6 => { 0 => ["test", BYTE, nil, R_M, IM1],
-                  1 => ["test", BYTE, nil, R_M, IM1],
-                  2 => ["not implemented"],
-                  3 => ["not implemented"],
-                  4 => ["mul",  BYTE, nil, R_M],
-                  5 => ["not implemented"],
-                  6 => ["not implemented"],
-                  7 => ["not implemented"]},
-        0xF7 => { 0 => ["test", LONG, nil, R_M, IMM],
-                  1 => ["test", LONG, nil, R_M, IMM],
-                  2 => ["not implemented"],
-                  3 => ["neg", LONG, nil, ZERO, R_M],
-                  4 => ["mul", LONG, nil, R_M],
-                  5 => ["not implemented"],
-                  6 => ["div", LONG, nil, R_M],
-                  7 => ["not implemented"]},
-        0xFE => { 0 => ["inc", BYTE, nil, R_M, ONE],
-                  1 => ["dec", BYTE, nil, R_M, ONE]},
-    }
 
     @@unified_opcode_table = {
           0x68 => ["push",    LONG, nil, IMM],
