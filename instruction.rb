@@ -522,8 +522,6 @@ class Instruction
                 decode_immediate 1
             when IMM
                 decode_immediate_16or32
-            when ZERO
-                encode_value 0
             when ONE
                 encode_value 1
             else
@@ -699,7 +697,7 @@ class Instruction
             @cpu.rip = @args[0].read_int
         when "retn"
             @cpu.rip = @cpu.stack.pop(8).pack("C*").unpack("Q<")[0]
-            @cpu.stack.pop(@args[0].read_int)
+            @cpu.stack.pop(@args.length > 0 ? @args[0].read_int : 0)
         when "syscall"
             syscall_number = @cpu.register[0].read(0, 8).pack("C*").unpack("Q<")[0]
             @linux.handle_syscall(syscall_number, [
@@ -1197,7 +1195,6 @@ class Instruction
     IMM = "imm"  # immediate value not longer than 4 bytes
     IM1 = "imm1" # 1-byte immediate value
     ACC = "acc"  # accumulator
-    ZERO= "0"    # constant value of 0
     ONE = "_1_"  # constant value of 1
     CL  = "CL"   # the lowest byte of the counter
 
@@ -1230,7 +1227,7 @@ class Instruction
           0xAF => ["scas",    LONG, nil],
           0xC0 => ["#SHIFT",  BYTE, nil, R_M, IM1],
           0xC1 => ["#SHIFT",  LONG, nil, R_M, IM1],
-          0xC3 => ["retn",    nil,  nil, ZERO],
+          0xC3 => ["retn",    nil,  nil],
           0xD0 => ["#SHIFT",  BYTE, nil, R_M, ONE],
           0xD1 => ["#SHIFT",  LONG, nil, R_M, ONE],
           0xD2 => ["#SHIFT",  BYTE, nil, R_M, CL],
