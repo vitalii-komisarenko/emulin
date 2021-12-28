@@ -111,12 +111,12 @@ class Instruction
         when 0x00..0x3F
             raise "bad opcode: %02x" % @opcode if [6,7].include?(@opcode % 8)
             funcs = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"]
-            params = [[BYTE, nil, R_M, REG],
-                      [LONG, nil, R_M, REG],
-                      [BYTE, nil, REG, R_M],
-                      [LONG, nil, REG, R_M],
-                      [BYTE, nil, ACC, IM1],
-                      [LONG, nil, ACC, IMM]]
+            params = [[BYTE, R_M, REG],
+                      [LONG, R_M, REG],
+                      [BYTE, REG, R_M],
+                      [LONG, REG, R_M],
+                      [BYTE, ACC, IM1],
+                      [LONG, ACC, IMM]]
             decode_arguments([funcs[@opcode / 8]] + params[@opcode % 8])
         when 0x50..0x57
             @func = "push"
@@ -470,8 +470,8 @@ class Instruction
                 @size = mm_or_xmm_operand_size
                 @args.push modrm.mm_or_xmm_register
                 @args.push modrm.mm_or_xmm_register_or_memory
-            elsif @@unified_opcode_table.key? @opcode
-                arr = @@unified_opcode_table[@opcode]
+            elsif @@reg_regmem_opcodes.key? @opcode
+                arr = @@reg_regmem_opcodes[@opcode]
                 decode_arguments arr
             else
                 raise "not implemented: opcode 0x%x" % @opcode
@@ -495,8 +495,6 @@ class Instruction
             @size = multi_byte
         end
 
-        @xmm_item_size = arr[2]
-
         @func = arr[0]
         case @func
         when "#SHIFT"
@@ -507,7 +505,7 @@ class Instruction
             @modrm.operand_size = @size
         end
 
-        args = arr[3..-1]
+        args = arr[2..-1]
         for arg in args
             case arg
             when REG
@@ -525,7 +523,7 @@ class Instruction
             when ONE
                 encode_value 1
             else
-                raise "unknown argument: %s"
+                raise "unknown argument: %s" % arg
             end
         end
     end
@@ -1198,62 +1196,62 @@ class Instruction
     ONE = "_1_"  # constant value of 1
     CL  = "CL"   # the lowest byte of the counter
 
-    @@unified_opcode_table = {
-          0x68 => ["push",    LONG, nil, IMM],
-          0x69 => ["imul",    LONG, nil, REG, R_M, IMM],
-          0x6B => ["imul",    LONG, nil, REG, R_M, IM1],
-          0x84 => ['test',    BYTE, nil, R_M, REG],
-          0x85 => ['test',    LONG, nil, R_M, REG],
-          0x86 => ['xchg',    BYTE, nil, REG, R_M],
-          0x87 => ['xchg',    LONG, nil, REG, R_M],
-          0x88 => ['mov',     BYTE, nil, R_M, REG],
-          0x89 => ['mov',     LONG, nil, R_M, REG],
-          0x8A => ['mov',     BYTE, nil, REG, R_M],
-          0x8B => ['mov',     LONG, nil, REG, R_M],
-          0x8D => ['lea',     LONG, nil, REG, R_M],
-          0x9E => ["sahf",    nil,  nil],
-          0x9F => ["lahf",    nil,  nil],
-          0xA4 => ["movs",    BYTE, nil],
-          0xA5 => ["movs",    LONG, nil],
-          0xA6 => ["cmps",    BYTE, nil],
-          0xA7 => ["cmps",    LONG, nil],
-          0xA8 => ["test",    BYTE, nil, ACC, IM1],
-          0xA9 => ["test",    LONG, nil, ACC, IMM],
-          0xAA => ["stos",    BYTE, nil],
-          0xAB => ["stos",    LONG, nil],
-          0xAC => ["lods",    BYTE, nil],
-          0xAD => ["lods",    LONG, nil],
-          0xAE => ["scas",    BYTE, nil],
-          0xAF => ["scas",    LONG, nil],
-          0xC0 => ["#SHIFT",  BYTE, nil, R_M, IM1],
-          0xC1 => ["#SHIFT",  LONG, nil, R_M, IM1],
-          0xC3 => ["retn",    nil,  nil],
-          0xD0 => ["#SHIFT",  BYTE, nil, R_M, ONE],
-          0xD1 => ["#SHIFT",  LONG, nil, R_M, ONE],
-          0xD2 => ["#SHIFT",  BYTE, nil, R_M, CL],
-          0xD3 => ["#SHIFT",  LONG, nil, R_M, CL],
-          0xF5 => ['cmc',     nil,  nil],
-          0xF8 => ['clc',     nil,  nil],
-          0xF9 => ['stc',     nil,  nil],
-          0xFA => ['cli',     nil,  nil],
-          0xFB => ['sti',     nil,  nil],
-          0xFC => ['cld',     nil,  nil],
-          0xFD => ['std',     nil,  nil],
-        0x0F05 => ["syscall", nil,  nil],
-        0x0FA2 => ['cpuid',   nil,  nil],
-        0x0FA3 => ['bt',      LONG, nil, R_M, REG],
-        0x0FA4 => ['shld',    LONG, nil, R_M, REG, IM1],
-        0x0FA5 => ['shld',    LONG, nil, R_M, REG, CL],
-        0x0FAB => ['bts',     LONG, nil, R_M, REG],
-        0x0FAC => ['shrd',    LONG, nil, R_M, REG, IM1],
-        0x0FAD => ['shrd',    LONG, nil, R_M, REG, CL],
-        0x0FAF => ['imul',    LONG, nil, REG, R_M],
-        0x0FB0 => ['cmpxchg', BYTE, nil, R_M, ACC, REG],
-        0x0FB1 => ['cmpxchg', LONG, nil, R_M, ACC, REG],
-        0x0FBC => ['bsf',     LONG, nil, REG, R_M],
-        0x0FBD => ['bsr',     LONG, nil, REG, R_M],
-        0x0FC0 => ['xadd',    BYTE, nil, R_M, REG],
-        0x0FC1 => ['xadd',    LONG, nil, R_M, REG],
+    @@reg_regmem_opcodes = {
+          0x68 => ["push",    LONG, IMM],
+          0x69 => ["imul",    LONG, REG, R_M, IMM],
+          0x6B => ["imul",    LONG, REG, R_M, IM1],
+          0x84 => ['test',    BYTE, R_M, REG],
+          0x85 => ['test',    LONG, R_M, REG],
+          0x86 => ['xchg',    BYTE, REG, R_M],
+          0x87 => ['xchg',    LONG, REG, R_M],
+          0x88 => ['mov',     BYTE, R_M, REG],
+          0x89 => ['mov',     LONG, R_M, REG],
+          0x8A => ['mov',     BYTE, REG, R_M],
+          0x8B => ['mov',     LONG, REG, R_M],
+          0x8D => ['lea',     LONG, REG, R_M],
+          0x9E => ["sahf",    nil],
+          0x9F => ["lahf",    nil],
+          0xA4 => ["movs",    BYTE],
+          0xA5 => ["movs",    LONG],
+          0xA6 => ["cmps",    BYTE],
+          0xA7 => ["cmps",    LONG],
+          0xA8 => ["test",    BYTE, ACC, IM1],
+          0xA9 => ["test",    LONG, ACC, IMM],
+          0xAA => ["stos",    BYTE],
+          0xAB => ["stos",    LONG],
+          0xAC => ["lods",    BYTE],
+          0xAD => ["lods",    LONG],
+          0xAE => ["scas",    BYTE],
+          0xAF => ["scas",    LONG],
+          0xC0 => ["#SHIFT",  BYTE, R_M, IM1],
+          0xC1 => ["#SHIFT",  LONG, R_M, IM1],
+          0xC3 => ["retn",    nil],
+          0xD0 => ["#SHIFT",  BYTE, R_M, ONE],
+          0xD1 => ["#SHIFT",  LONG, R_M, ONE],
+          0xD2 => ["#SHIFT",  BYTE, R_M, CL],
+          0xD3 => ["#SHIFT",  LONG, R_M, CL],
+          0xF5 => ['cmc',     nil],
+          0xF8 => ['clc',     nil],
+          0xF9 => ['stc',     nil],
+          0xFA => ['cli',     nil],
+          0xFB => ['sti',     nil],
+          0xFC => ['cld',     nil],
+          0xFD => ['std',     nil],
+        0x0F05 => ["syscall", nil],
+        0x0FA2 => ['cpuid',   nil],
+        0x0FA3 => ['bt',      LONG, R_M, REG],
+        0x0FA4 => ['shld',    LONG, R_M, REG, IM1],
+        0x0FA5 => ['shld',    LONG, R_M, REG, CL],
+        0x0FAB => ['bts',     LONG, R_M, REG],
+        0x0FAC => ['shrd',    LONG, R_M, REG, IM1],
+        0x0FAD => ['shrd',    LONG, R_M, REG, CL],
+        0x0FAF => ['imul',    LONG, REG, R_M],
+        0x0FB0 => ['cmpxchg', BYTE, R_M, ACC, REG],
+        0x0FB1 => ['cmpxchg', LONG, R_M, ACC, REG],
+        0x0FBC => ['bsf',     LONG, REG, R_M],
+        0x0FBD => ['bsr',     LONG, REG, R_M],
+        0x0FC0 => ['xadd',    BYTE, R_M, REG],
+        0x0FC1 => ['xadd',    LONG, R_M, REG],
     }
 end
 
