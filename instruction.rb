@@ -786,7 +786,7 @@ class Instruction
             @cpu.flags.z = @args[1].read_int == 0
             @args[0].write_int @args[1].read_bit_array.rindex(1) unless @cpu.flags.z
         when "rol", "ror", "rcl", "rcr", "shl", "shr", "sal", "sar"
-            times = @args[1].read_int % (2 ** @size)
+            times = @args[1].read_int % (8 * @size)
             bit_array = @args[0].read_bit_array
             times.times do
                 case @func
