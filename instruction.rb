@@ -137,27 +137,10 @@ class Instruction
             decode_immediate 1
             @args[0].read_size = 8
             return
-        when 0x0FBE..0x0FBF
-            @func = "movsx"
-            @size = multi_byte
-            @args.push modrm.register
-            modrm.operand_size = @opcode == 0x0FBE ? 1 : 2
-            @args.push modrm.register_or_memory
-        when 0x0FB6..0x0FB7
-            @func = "movzx"
-            @size = multi_byte
-            @args.push modrm.register
-            modrm.operand_size = @opcode == 0x0FB6 ? 1 : 2
-            @args.push modrm.register_or_memory
         when 0x70..0x7F
             @func = "jmp"
             @cond = @opcode % 16
             decode_relative_address 1
-        when 0x0F80..0x0F8F
-            @func = "jmp"
-            @cond = @opcode % 16
-            # TODO: are 16-bit offset specified?
-            decode_relative_address 4
         when 0x80, 0x81, 0x83
             @size = @opcode == 0x80 ? 1 : multi_byte
             @func = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp"][modrm.opcode_ext]
@@ -371,6 +354,23 @@ class Instruction
             @size = (@prefix.operand_size_overridden || @prefix.repe) ? 16 : 8
             @args.push modrm.mm_or_xmm_register_or_memory
             @args.push modrm.mm_or_xmm_register
+        when 0x0F80..0x0F8F
+            @func = "jmp"
+            @cond = @opcode % 16
+            # TODO: are 16-bit offset specified?
+            decode_relative_address 4
+        when 0x0FB6..0x0FB7
+            @func = "movzx"
+            @size = multi_byte
+            @args.push modrm.register
+            modrm.operand_size = @opcode == 0x0FB6 ? 1 : 2
+            @args.push modrm.register_or_memory
+        when 0x0FBE..0x0FBF
+            @func = "movsx"
+            @size = multi_byte
+            @args.push modrm.register
+            modrm.operand_size = @opcode == 0x0FBE ? 1 : 2
+            @args.push modrm.register_or_memory
         when 0x0FD6
             raise "not implemented" unless @prefix.operand_size_overridden
             @func = "movq"
