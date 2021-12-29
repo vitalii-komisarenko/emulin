@@ -204,24 +204,8 @@ class Instruction
         when 0xEB
             @func = "jmp"
             decode_relative_address 1
-        when 0xF6
-            @size = 1
-            case modrm.opcode_ext
-            when 0, 1
-                @func = "test"
-                @args.push modrm.register_or_memory
-                decode_immediate
-            when 2
-                @func = "not"
-                @args.push modrm.register_or_memory
-            when 4
-                @func = "mul"
-                @args.push modrm.register_or_memory
-            else
-                raise "not implemented. opcode = %x, extension = %d" % [@opcode, modrm.opcode_ext]
-            end
-        when 0xF7
-            @size = multi_byte
+        when 0xF6, 0xF7
+            @size = @opcode == 0xF6 ? 1 : multi_byte
             case modrm.opcode_ext
             when 0, 1
                 @func = "test"
