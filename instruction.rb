@@ -132,18 +132,6 @@ class Instruction
             @args.push modrm.register
             modrm.operand_size = [4, modrm.operand_size].min
             @args.push modrm.register_or_memory
-        when 0xC6
-            @size = 1
-            unspecified_opcode_extension unless modrm.opcode_ext == 0
-            @func = "mov"
-            @args.push modrm.register_or_memory
-            decode_immediate
-        when 0xC7
-            @size = multi_byte
-            unspecified_opcode_extension unless modrm.opcode_ext == 0
-            @func = "mov"
-            @args.push modrm.register_or_memory
-            decode_immediate_16or32
         when 0x6A
             @func = "push"
             decode_immediate 1
@@ -175,16 +163,28 @@ class Instruction
             @args.push Pointer.new(@cpu.register[0], 0, @size)
             @args.push Pointer.new(@cpu.register[0], 0, @size / 2)
             @func = @size == 2 ? "cbw" : @size == 4 ? "cwde" : "cdqe"
-        when 0xb0..0xb7
+        when 0xB0..0xB7
             @func = "mov"
             @size = 1
             decode_register_from_opcode
             decode_immediate
-        when 0xb8..0xbf
+        when 0xB8..0xBF
             @func = "mov"
             @size = multi_byte
             decode_register_from_opcode
             decode_immediate
+        when 0xC6
+            @size = 1
+            unspecified_opcode_extension unless modrm.opcode_ext == 0
+            @func = "mov"
+            @args.push modrm.register_or_memory
+            decode_immediate
+        when 0xC7
+            @size = multi_byte
+            unspecified_opcode_extension unless modrm.opcode_ext == 0
+            @func = "mov"
+            @args.push modrm.register_or_memory
+            decode_immediate_16or32
         when 0xE0..0xE2
             @func = ["loopnz", "loopz", "loop"][@opcode - 0xE0]
             encode_counter
