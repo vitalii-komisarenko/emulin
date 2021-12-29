@@ -211,6 +211,9 @@ class Instruction
                 @func = "test"
                 @args.push modrm.register_or_memory
                 decode_immediate
+            when 2
+                @func = "not"
+                @args.push modrm.register_or_memory
             when 4
                 @func = "mul"
                 @args.push modrm.register_or_memory
@@ -224,6 +227,9 @@ class Instruction
                 @func = "test"
                 @args.push modrm.register_or_memory
                 decode_immediate
+            when 2
+                @func = "not"
+                @args.push modrm.register_or_memory
             when 3
                 @func = "neg"
                 encode_value 0
@@ -784,6 +790,8 @@ class Instruction
             execute
             @func = 'add'
             execute
+        when 'not'
+            @args[0].write @args[0].read.map!{ |byte| 0xFF - byte}
         when 'div'
             "div not implemented for size = 1" if @size == 1
             rax = Pointer.new(@cpu.register[0], 0, @size)
