@@ -377,9 +377,15 @@ class Instruction
                 @xmm_item_size = 8
                 @args.push modrm.mm_or_xmm_register_or_memory
                 decode_immediate 1
-            when 3, 7
+            when 3
                 # TODO: verify that prefix 66 exists
                 raise "not implemented"
+            when 7
+                raise "0x66 prefix required" unless @prefix.simd_prefix == 0x66
+                @func = "pslldq"
+                @size = 16
+                @args.push modrm.mm_or_xmm_register_or_memory
+                decode_immediate 1
             else
                 unspecified_opcode_extension
             end
@@ -993,6 +999,10 @@ class Instruction
             @func = "pshuf"
             execute
             @args[0].pointer_to_lower_half.write @args[1].pointer_to_lower_half.read
+        when "pslldq"
+            dest, times = @args
+            data = ([0] * times.read_unsigned) + dest.read
+            dest.write data.slice(0, @size)
         else
             raise "function not implemented: " + @func
         end
