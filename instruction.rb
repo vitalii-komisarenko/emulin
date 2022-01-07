@@ -29,7 +29,7 @@ class InstructionPrefix
     attr_reader :operand_size_overridden, :address_size_overridden, :segment,
                 :repe, :repne, :rex_w, :reg_extension, :rex_x, :rex_b,
                 :rex_prefix_present
-    
+
     def initialize(stream)
         @operand_size_overridden = false
         @address_size_overridden = false
@@ -42,7 +42,7 @@ class InstructionPrefix
         @rex_x = 0
         @rex_b = 0
         @rex_prefix_present = false
-    
+
         loop do
             prefix = stream.read
 
@@ -96,17 +96,17 @@ class Instruction
         @prefix = InstructionPrefix.new(stream)
         @opcode = read_opcode(stream)
         @modrm = nil
-        
+
         @func = nil # operation to be done (e.g. 'add', 'mov' etc.)
         @size = nil # operand size (in bytes)
         @args = []  # operation arguments. If operation result is to be stored
                     # the destination is encoded in the first argument
         @cond = nil # condition to check for conditional operations (e.g. 'jne', 'cmovo')
-        
+
         @xmm_item_size = nil
-        
+
         @address_size = @prefix.address_size_overridden ? 4 : 8
-        
+
         case @opcode
         when 0x00..0x3F
             raise "bad opcode: %02x" % @opcode if [6,7].include?(@opcode % 8)
@@ -480,7 +480,7 @@ class Instruction
             arg.read_size = @args[0].size
         end
     end
-    
+
     def decode_arguments(arr)
         # size needs to be decoded first in case opcode extension is used
         # since modrm parsing relies on it
@@ -544,7 +544,7 @@ class Instruction
         reg = (@opcode % 8) + 8 * @prefix.rex_b
         @args.push Pointer.new(@cpu.register[reg], 0, @size)
     end
-    
+
     def decode_immediate(size = @size)
         @args.push @stream.read_signed_pointer(size)
     end
@@ -553,12 +553,12 @@ class Instruction
         size = @size == 8 ? 4 : @size
         decode_immediate(size)
     end
-    
+
     def encode_value(value, size = @size)
         size = size.nil? ? 8 : size
         @args.push ConstBuffer.new(value, size).ptr
     end
-    
+
     def decode_relative_address(size)
         rel = @stream.read_pointer(size).read_signed
         encode_value(@cpu.rip + rel)
@@ -600,7 +600,7 @@ class Instruction
             return byte1
         end
     end
-    
+
     def condition_is_met(cond = @cond)
         case cond
         when nil
@@ -641,14 +641,14 @@ class Instruction
             raise "unexpected value of `cond`: %d" % cond
         end
     end
-    
+
     def segment_offset
         return @cpu.fs * 16 if @prefix.segment == "FS"
         return @cpu.gs * 16 if @prefix.segment == "GS"
         return 0 if @prefix.segment == "none"
         raise "unexpected name of the segment: " + @prefix.segment
     end
-    
+
     def execute
         puts "opcode: %x" % @opcode
         puts "mnemonic: %s" % @func
@@ -737,7 +737,7 @@ class Instruction
             @cpu.flags.c = value >= 2 ** (8 * @args[0].size) unless @func == "inc"
 
             highest_res  = @args[0].highest_bit_set
-            
+
             @cpu.flags.o = (highest_res && !highest_bit1 && !highest_bit2) ||
                            (!highest_res && highest_bit1 && highest_bit2)
             @cpu.flags.a = (four_bits_1 + four_bits_2 + cf >= 16)
@@ -977,12 +977,9 @@ class Instruction
             arr = @args[1].read.map{|x| x[7]}
             @args[0].write_bit_array(arr)
         when "palignr"
-            arr1 = @args[0].read
-            arr2 = @args[1].read
+            arr = @args[1].read + @args[0].read
             shift = @args[2].read.first % 256 # unsigned
-            raise "not implemented" if shift > @size / 2
-            res = arr2.slice(shift, shift + @size / 2) + arr1.slice(@size / 2 - shift, @size - shift)
-            @args[0].write res
+            @args[0].write arr.slice(shift, @size)
         when "pshuf"
             order = @args[2].read_int
             data = @args[1].read + Array.new(@xmm_item_size * 3){|x| 0}
@@ -1009,7 +1006,7 @@ class Instruction
 
         @cpu.flags.r = @func != "syscall"
     end
-    
+
     def for_each_xmm_item(func)
         for i in 0..(@size / @xmm_item_size)
             dest_ptr = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
@@ -1019,7 +1016,7 @@ class Instruction
             dest_ptr.write_int(func.call(dest, arg))
         end
     end
-    
+
     def for_each_xmm_item_signed(func)
         for i in 0..(@size / @xmm_item_size)
             dest_ptr = Pointer.new(@args[0].mem, @args[0].pos + i * @xmm_item_size, @xmm_item_size)
@@ -1029,7 +1026,7 @@ class Instruction
             dest_ptr.write_int(func.call(dest, arg))
         end
     end
-    
+
     def for_each_xmm_item_and_constant(func)
         arg = @args[1].read_int
         for i in 0..(@size / @xmm_item_size)
@@ -1041,7 +1038,7 @@ class Instruction
 
     def execute_string_instruction
         string_func = @func
-        
+
         loop_mode = "none"
         if @prefix.repe
             if ["cmps", "scas"].include? string_func
@@ -1064,7 +1061,7 @@ class Instruction
             pointed_by_rsi = Pointer.new(@stream.mem, (segment_offset + rsi.read_int) % max_address, @size)
 
             ptr_diff = @cpu.flags.d ? -@size : @size
-        
+
             case string_func
             when "cmps"
                 @func = "cmp"
@@ -1090,14 +1087,14 @@ class Instruction
             else
                 raise "string function not implemented: " + string_func
             end
-            
+
             # TODO: is RCX changed if there is no rep* prefix?
             unless loop_mode == "none"
                 rcx.write_int(rcx.read_int - 1)
             end
-            
+
             rcx_empty = rcx.read_int == 0
-            
+
             case loop_mode
             when "none"
                 break
@@ -1131,7 +1128,7 @@ class Instruction
                 raise "unsupported flag: " + flag
             end
         end
-        
+
     end
 
     # calculate operand size if operand size is not 1 ("multi-byte")
@@ -1144,7 +1141,7 @@ class Instruction
             return 4
         end
     end
-    
+
     def jump(pos)
         @cpu.rip = pos.read_int
     end
@@ -1269,15 +1266,15 @@ class ModRM_Parser
         @address_size = address_size
         @segment_offset = segment_offset
     end
-    
+
     def mode
         return (@modrm >> 6) & 0x3
     end
-    
+
     def opcode_ext
         return (@modrm & 0x38) >> 3
     end
-    
+
     def register
         index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
         return _register(index)
@@ -1289,7 +1286,7 @@ class ModRM_Parser
         end
         return Pointer.new(@cpu.register[index], 0, @operand_size)
     end
-    
+
     def mm_or_xmm_register
         index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
         if @operand_size == 8
@@ -1298,7 +1295,7 @@ class ModRM_Parser
             return Pointer.new(@cpu.xmm_register[index], 0, @operand_size)
         end
     end
-    
+
     def xmm_register
         index = ((@modrm & 0x38) >> 3) + @prefix.reg_extension
         return Pointer.new(@cpu.xmm_register[index], 0, @operand_size)
@@ -1355,20 +1352,19 @@ class ModRM_Parser
 
 
     def memory_at(pos)
-        p "memory_at %x" % pos
         # TODO: shall @segment_offset be used in all cases
         # TODO: how do segment overrides work with RIP addressing
         return Pointer.new(@stream.mem, (@segment_offset + pos) % (2 ** (8 * @address_size)), @operand_size) 
     end
-    
+
     def disp32
         return @stream.read_pointer(4).read_signed
     end
-    
+
     def disp8
         return @stream.read_pointer(1).read_signed
     end
-    
+
     def sib
         sib = @stream.read
         @scale = 2 ** (sib >> 6)
