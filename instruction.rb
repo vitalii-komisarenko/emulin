@@ -702,6 +702,11 @@ class Instruction
                 @cpu.register[8].read(0, 8).pack("C*").unpack("Q<")[0],
                 @cpu.register[9].read(0, 8).pack("C*").unpack("Q<")[0],
             ])
+        when 'bt'
+            bit_idx = @args[1].read_unsigned
+            raise "not implemented" if bit_idx > @size * 8
+            bit = @args[0].read_unsigned[bit_idx]
+            @cpu.flags.c = bit == 1
         when 'xor'
             value = @args[0].read_int ^ @args[1].read_int
             @args[0].write_int value
