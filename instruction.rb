@@ -347,7 +347,7 @@ class Instruction
                 @size = 16
                 @xmm_item_size = 2
             when 0x66
-                @func = "pshuf"
+                @func = "pshufd"
                 @size = 16
                 @xmm_item_size = 4
             end
@@ -1001,6 +1001,17 @@ class Instruction
             @func = "pshuf"
             execute
             @args[0].pointer_to_lower_half.write @args[1].pointer_to_lower_half.read
+        when "pshufd"
+            dest  = @args[0]
+            src   = @args[1]
+            order = @args[2].read_int
+            res   = []
+
+            4.times do |i|
+                offset = order >> (4 * i)
+                res += Pointer.new(src.mem, src.pos + offset, 4).read
+            end
+            dest.write res
         when "pslldq"
             dest, times = @args
             data = ([0] * times.read_unsigned) + dest.read
