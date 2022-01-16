@@ -28,6 +28,10 @@ class Linux
             else
                 raise "not implemented fd: %d" % fd
             end
+        when 10 # mprotect
+            @cpu.rcx = 0x5296cb
+            @cpu.r11 = 0x306
+            syscall_return 0
         when 12 # brk
             if args[0] > 0
                 @brk = args[0]
