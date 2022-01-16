@@ -1008,7 +1008,7 @@ class Instruction
             res   = []
 
             4.times do |i|
-                offset = order >> (4 * i)
+                offset = (order >> (2 * i)) & 0b11
                 res += Pointer.new(src.mem, src.pos + offset, 4).read
             end
             dest.write res
